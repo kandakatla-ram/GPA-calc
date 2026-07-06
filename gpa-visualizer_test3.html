@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GPA Visualizer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f5f3;
+      --surface: #ffffff;
+      --surface2: #ebebea;
+      --surface3: #e0e0de;
+      --border: rgba(0,0,0,0.08);
+      --border-med: rgba(0,0,0,0.14);
+      --text: #1c1c1a;
+      --text-muted: #6a6a66;
+      --text-faint: #aaa9a4;
+      --green:     #2a7a3b;
+      --green-bg:  #e6f5e9;
+      --blue:      #1a60b0;
+      --blue-bg:   #ddeaf9;
+      --orange:    #c05c00;
+      --orange-bg: #fdefd8;
+      --red:       #b52020;
+      --red-bg:    #fde8e8;
+      --radius: 8px;
+      --radius-lg: 14px;
+      --gpa-line: #374151;
+      --sidebar-w: 220px;
+      --sidebar-icon-w: 48px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #181816;
+        --surface: #222220;
+        --surface2: #2b2b29;
+        --surface3: #333331;
+        --border: rgba(255,255,255,0.08);
+        --border-med: rgba(255,255,255,0.14);
+        --text: #f0efe9;
+        --text-muted: #9a9a94;
+        --text-faint: #55554f;
+        --green:     #4ec668;
+        --green-bg:  #0e2e16;
+        --blue:      #5fa8f5;
+        --blue-bg:   #0d2238;
+        --orange:    #f5a742;
+        --orange-bg: #2a1a06;
+        --red:       #f06060;
+        --red-bg:    #2a0d0d;
+        --gpa-line: #c8c8c0;
+      }
+    }
+
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* ── Layout shell ── */
+    .app {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      position: fixed;
+      left: 0; top: 0; bottom: 0;
+      width: var(--sidebar-icon-w);
+      background: var(--surface);
+      border-right: 0.5px solid var(--border-med);
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+      transition: width 0.22s cubic-bezier(0.4,0,0.2,1);
+      overflow: hidden;
+    }
+    .sidebar:hover, .sidebar.open {
+      width: var(--sidebar-w);
+      box-shadow: 4px 0 24px rgba(0,0,0,0.10);
+    }
+
+    .sidebar-logo {
+      height: 52px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 10px;
+      border-bottom: 0.5px solid var(--border);
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .sidebar-logo-icon {
+      width: 22px; height: 22px;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .sidebar-logo-text {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.15s 0.05s;
+      letter-spacing: -0.3px;
+    }
+    .sidebar:hover .sidebar-logo-text,
+    .sidebar.open .sidebar-logo-text { opacity: 1; }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 10px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 13px;
+      cursor: pointer;
+      border-radius: 0;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      font-size: 13.5px;
+      font-family: inherit;
+      white-space: nowrap;
+      transition: background 0.12s, color 0.12s;
+      position: relative;
+      overflow: hidden;
+      text-align: left;
+      width: 100%;
+    }
+    .nav-item:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+    .nav-item.active {
+      color: var(--text);
+      font-weight: 500;
+    }
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 6px; bottom: 6px;
+      width: 3px;
+      background: var(--blue);
+      border-radius: 0 3px 3px 0;
+    }
+    .nav-icon {
+      width: 22px; height: 22px;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .nav-label {
+      opacity: 0;
+      transition: opacity 0.15s 0.05s;
+    }
+    .sidebar:hover .nav-label,
+    .sidebar.open .nav-label { opacity: 1; }
+
+    .nav-badge {
+      margin-left: auto;
+      font-size: 10px;
+      background: var(--blue-bg);
+      color: var(--blue);
+      padding: 1px 6px;
+      border-radius: 20px;
+      font-weight: 500;
+      opacity: 0;
+      transition: opacity 0.15s 0.05s;
+      white-space: nowrap;
+    }
+    .sidebar:hover .nav-badge,
+    .sidebar.open .nav-badge { opacity: 1; }
+
+    .sidebar-divider {
+      height: 0.5px;
+      background: var(--border);
+      margin: 6px 12px;
+    }
+
+    /* ── Main content ── */
+    .main {
+      margin-left: var(--sidebar-icon-w);
+      flex: 1;
+      padding: 2rem 1.5rem 4rem;
+      transition: margin-left 0.22s cubic-bezier(0.4,0,0.2,1);
+      min-width: 0;
+    }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .container { max-width: 720px; margin: 0 auto; }
+
+    /* ── Shared header ── */
+    .page-header { margin-bottom: 2rem; }
+    .page-header h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.5px; }
+    .page-header p { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
+
+    /* ── Add course form ── */
+    .add-form {
+      background: var(--surface);
+      border: 0.5px solid var(--border-med);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label { font-size: 12px; color: var(--text-muted); }
+
+    input[type="text"], input[type="number"], select {
+      height: 36px;
+      padding: 0 10px;
+      font-size: 14px;
+      border: 0.5px solid var(--border-med);
+      border-radius: var(--radius);
+      background: var(--surface2);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      font-family: inherit;
+    }
+    input[type="text"] { width: 160px; }
+    input[type="number"] { width: 80px; }
+    select { width: 110px; cursor: pointer; }
+    input:focus, select:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(26,96,176,0.12);
+    }
+
+    .btn {
+      height: 36px;
+      padding: 0 16px;
+      font-size: 14px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      border: 0.5px solid var(--border-med);
+      background: var(--surface2);
+      color: var(--text);
+      transition: background 0.1s;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .btn:hover { background: var(--surface3); }
+    .btn-primary {
+      background: var(--text);
+      color: var(--bg);
+      border-color: var(--text);
+    }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-sm { height: 30px; padding: 0 12px; font-size: 13px; }
+    .btn-danger { color: var(--red); border-color: var(--red-bg); }
+    .btn-danger:hover { background: var(--red-bg); }
+
+    /* ── GPA stat ── */
+    .gpa-stat {
+      background: var(--surface);
+      border: 0.5px solid var(--border-med);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.5rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .gpa-number { font-size: 40px; font-weight: 700; letter-spacing: -1.5px; line-height: 1; transition: color 0.3s; }
+    .gpa-label  { font-size: 14px; color: var(--text-muted); }
+    .gpa-letter { font-size: 22px; font-weight: 600; margin-left: auto; }
+
+    /* ── Chart ── */
+    .chart-wrap {
+      background: var(--surface);
+      border: 0.5px solid var(--border-med);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+      overflow-x: auto;
+    }
+    .chart-title { font-size: 13px; color: var(--text-muted); margin-bottom: 1.25rem; }
+
+    .y-axis { width: 36px; flex-shrink: 0; position: relative; }
+    .y-tick {
+      position: absolute; right: 6px;
+      font-size: 11px; color: var(--text-faint);
+      transform: translateY(50%); line-height: 1;
+    }
+    .chart-inner { flex: 1; position: relative; }
+    .gridline { position: absolute; left: 0; right: 0; height: 1px; background: var(--border); }
+    .gridline.major { background: var(--border-med); }
+
+    .mean-hline {
+      position: absolute; left: 0; right: 0; height: 2px;
+      background: var(--gpa-line); z-index: 5;
+      transition: top 0.4s ease;
+    }
+    .mean-hline-label {
+      position: absolute; right: 4px; top: -18px;
+      font-size: 11px; color: var(--gpa-line);
+      font-weight: 600; white-space: nowrap;
+    }
+    .cols {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      display: flex; align-items: flex-start;
+      gap: 8px; padding: 0 8px;
+    }
+    .col { flex: 1; height: 100%; position: relative; display: flex; flex-direction: column; align-items: center; }
+    .bar-seg {
+      position: absolute; width: 100%; border-radius: 4px;
+      transition: height 0.4s ease, top 0.4s ease, background 0.3s;
+      cursor: default; display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    .bar-seg-label {
+      font-size: 10px; font-weight: 600;
+      writing-mode: vertical-rl; text-orientation: mixed;
+      transform: rotate(180deg); white-space: nowrap;
+      opacity: 0.9; pointer-events: none; line-height: 1;
+    }
+    .col-label { position: absolute; bottom: -52px; width: 100%; text-align: center; }
+    .col-grade { font-size: 13px; font-weight: 600; line-height: 1.3; }
+    .col-name  { font-size: 10px; color: var(--text-muted); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .col-remove { font-size: 10px; color: var(--text-faint); cursor: pointer; margin-top: 1px; display: inline-block; }
+    .col-remove:hover { color: var(--red); }
+    .mean-dot {
+      position: absolute; width: 8px; height: 8px;
+      border-radius: 50%; background: var(--gpa-line);
+      top: -3px; left: 50%; transform: translateX(-50%);
+      z-index: 6; transition: top 0.4s ease;
+    }
+    .empty-chart {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 200px; color: var(--text-faint);
+      font-size: 14px; flex-direction: column; gap: 6px;
+    }
+
+    /* ── Course list ── */
+    .course-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 1.5rem; }
+    .course-row {
+      background: var(--surface); border: 0.5px solid var(--border-med);
+      border-radius: var(--radius); padding: 10px 14px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .course-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .course-name { flex: 1; font-size: 14px; }
+    .course-grade { font-size: 14px; font-weight: 600; width: 30px; text-align: right; }
+    .course-gpa   { font-size: 13px; color: var(--text-muted); width: 30px; text-align: right; }
+    .course-pull  { font-size: 12px; width: 60px; text-align: right; font-weight: 500; }
+    .course-rm    { font-size: 12px; color: var(--text-faint); cursor: pointer; margin-left: 4px; }
+    .course-rm:hover { color: var(--red); }
+
+    /* ── Legend ── */
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); margin-bottom: 0.5rem; }
+    .leg { display: flex; align-items: center; gap: 6px; }
+    .leg-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+    /* ── What-if sliders ── */
+    .slider-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.5rem; }
+    .slider-row {
+      background: var(--surface); border: 0.5px solid var(--border-med);
+      border-radius: var(--radius); padding: 12px 14px;
+    }
+    .slider-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .slider-name { flex: 1; font-size: 14px; }
+    .slider-real { font-size: 12px; color: var(--text-faint); }
+    .slider-hyp  { font-size: 14px; font-weight: 600; width: 36px; text-align: right; }
+    input[type="range"] {
+      width: 100%; height: 4px; cursor: pointer;
+      accent-color: var(--blue);
+      background: var(--surface2);
+      border-radius: 2px; border: none; outline: none;
+      padding: 0;
+    }
+    .slider-delta { font-size: 12px; font-weight: 500; margin-top: 4px; text-align: right; }
+
+    .hypothetical-banner {
+      background: var(--blue-bg);
+      border: 0.5px solid var(--blue);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--blue);
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Custom Scale ── */
+    .scale-table {
+      background: var(--surface); border: 0.5px solid var(--border-med);
+      border-radius: var(--radius-lg); overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+    .scale-table-head {
+      display: grid; grid-template-columns: 80px 1fr 1fr 40px;
+      gap: 0; padding: 8px 14px;
+      background: var(--surface2);
+      font-size: 12px; color: var(--text-muted); font-weight: 500;
+      border-bottom: 0.5px solid var(--border-med);
+    }
+    .scale-row {
+      display: grid; grid-template-columns: 80px 1fr 1fr 40px;
+      gap: 0; padding: 8px 14px;
+      border-bottom: 0.5px solid var(--border);
+      align-items: center;
+      font-size: 14px;
+    }
+    .scale-row:last-child { border-bottom: none; }
+    .scale-letter { font-weight: 600; }
+    .scale-input {
+      width: 80px; height: 28px; font-size: 13px;
+      padding: 0 8px; border-radius: 6px;
+    }
+    .scale-rm { color: var(--text-faint); cursor: pointer; font-size: 12px; text-align: center; }
+    .scale-rm:hover { color: var(--red); }
+
+    .scale-add-row {
+      display: flex; gap: 8px; align-items: flex-end;
+      padding: 12px 14px;
+      border-top: 0.5px solid var(--border-med);
+      background: var(--surface);
+    }
+
+    /* ── College (credit hours) ── */
+    .credits-badge {
+      background: var(--green-bg); color: var(--green);
+      font-size: 11px; padding: 1px 7px; border-radius: 20px;
+      font-weight: 500; margin-left: 6px;
+    }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: 11px; color: var(--text-faint);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      padding: 0 13px; margin-bottom: 4px; margin-top: 10px;
+    }
+
+    footer {
+      margin-top: 2.5rem; font-size: 12px; color: var(--text-faint);
+      border-top: 0.5px solid var(--border); padding-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ══ SIDEBAR ══ -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <rect x="2" y="10" width="3" height="8" rx="1" fill="var(--blue)" opacity="0.5"/>
+          <rect x="6.5" y="5" width="3" height="13" rx="1" fill="var(--green)"/>
+          <rect x="11" y="8" width="3" height="10" rx="1" fill="var(--orange)" opacity="0.7"/>
+          <rect x="15.5" y="2" width="3" height="16" rx="1" fill="var(--green)"/>
+          <line x1="1" y1="12" x2="19" y2="12" stroke="var(--gpa-line)" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <span class="sidebar-logo-text">GPA Visualizer</span>
+    </div>
+
+    <div class="sidebar-nav">
+      <div class="section-label nav-label" style="margin-top:6px">Modes</div>
+
+      <button class="nav-item active" onclick="switchPage('hs')" id="nav-hs">
+        <span class="nav-icon">🎓</span>
+        <span class="nav-label">High School GPA</span>
+      </button>
+
+      <button class="nav-item" onclick="switchPage('college')" id="nav-college">
+        <span class="nav-icon">🏛️</span>
+        <span class="nav-label">College GPA</span>
+        <span class="nav-badge">Credits</span>
+      </button>
+
+      <button class="nav-item" onclick="switchPage('custom')" id="nav-custom">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">Custom Scale</span>
+      </button>
+
+      <div class="sidebar-divider"></div>
+      <div class="section-label nav-label">Tools</div>
+
+      <button class="nav-item" onclick="switchPage('whatif')" id="nav-whatif">
+        <span class="nav-icon">🔮</span>
+        <span class="nav-label">What If…</span>
+        <span class="nav-badge">Hypothetical</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ══ PAGES ══ -->
+  <main class="main">
+
+    <!-- ── PAGE: High School GPA ── -->
+    <div class="page active" id="page-hs">
+      <div class="container">
+        <div class="page-header">
+          <h1>High School GPA</h1>
+          <p>See how each course pulls your GPA up or down — and by how much.</p>
+        </div>
+
+        <div class="add-form">
+          <div class="field">
+            <label>Course name</label>
+            <input type="text" id="hs-cName" placeholder="e.g. Calculus" onkeydown="if(event.key==='Enter')hsAdd()" />
+          </div>
+          <div class="field">
+            <label>Grade</label>
+            <select id="hs-cGrade">
+              <option value="4.3">A+</option><option value="4.0" selected>A</option><option value="3.7">A−</option>
+              <option value="3.3">B+</option><option value="3.0">B</option><option value="2.7">B−</option>
+              <option value="2.3">C+</option><option value="2.0">C</option><option value="1.7">C−</option>
+              <option value="1.3">D+</option><option value="1.0">D</option><option value="0.7">D−</option>
+              <option value="0.0">F</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="hsAdd()">Add course</button>
+          <button class="btn" onclick="hsReset()" style="margin-left:auto">Reset</button>
+        </div>
+
+        <div class="gpa-stat">
+          <span class="gpa-number" id="hs-gpaNum">—</span>
+          <span class="gpa-label">cumulative GPA</span>
+          <span class="gpa-letter" id="hs-gpaLetter"></span>
+        </div>
+
+        <div class="chart-wrap">
+          <div class="chart-title">Each bar shows how far a course sits from your GPA — above the line pulls up, below pulls down</div>
+          <div id="hs-chart"></div>
+        </div>
+
+        <div id="hs-list"></div>
+
+        <div class="legend">
+          <div class="leg"><div class="leg-dot" style="background:var(--green)"></div> Well above (≥ 4.0)</div>
+          <div class="leg"><div class="leg-dot" style="background:var(--blue)"></div> Above GPA</div>
+          <div class="leg"><div class="leg-dot" style="background:var(--orange)"></div> Below GPA</div>
+          <div class="leg"><div class="leg-dot" style="background:var(--red)"></div> Well below (≤ 2.7)</div>
+        </div>
+        <footer>A+ = 4.3 · A = 4.0 · A− = 3.7 · B+ = 3.3 · B = 3.0 · B− = 2.7 · C+ = 2.3 · C = 2.0 · C− = 1.7 · D+ = 1.3 · D = 1.0 · D− = 0.7 · F = 0.0</footer>
+      </div>
+    </div>
+
+    <!-- ── PAGE: College GPA ── -->
+    <div class="page" id="page-college">
+      <div class="container">
+        <div class="page-header">
+          <h1>College GPA</h1>
+          <p>Weighted by credit hours — a 4-credit A counts more than a 1-credit A.</p>
+        </div>
+
+        <div class="add-form">
+          <div class="field">
+            <label>Course name</label>
+            <input type="text" id="col-cName" placeholder="e.g. Organic Chem" onkeydown="if(event.key==='Enter')colAdd()" />
+          </div>
+          <div class="field">
+            <label>Grade</label>
+            <select id="col-cGrade">
+              <option value="4.3">A+</option><option value="4.0" selected>A</option><option value="3.7">A−</option>
+              <option value="3.3">B+</option><option value="3.0">B</option><option value="2.7">B−</option>
+              <option value="2.3">C+</option><option value="2.0">C</option><option value="1.7">C−</option>
+              <option value="1.3">D+</option><option value="1.0">D</option><option value="0.7">D−</option>
+              <option value="0.0">F</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Credits</label>
+            <input type="number" id="col-credits" value="3" min="0.5" max="6" step="0.5" style="width:70px" />
+          </div>
+          <button class="btn btn-primary" onclick="colAdd()">Add course</button>
+          <button class="btn" onclick="colReset()" style="margin-left:auto">Reset</button>
+        </div>
+
+        <div class="gpa-stat">
+          <span class="gpa-number" id="col-gpaNum">—</span>
+          <span class="gpa-label">weighted GPA</span>
+          <span class="gpa-letter" id="col-gpaLetter"></span>
+          <span style="margin-left:auto;font-size:13px;color:var(--text-muted)" id="col-totalCredits"></span>
+        </div>
+
+        <div class="chart-wrap">
+          <div class="chart-title">Bar height = how hard a course pulls, scaled by credit hours</div>
+          <div id="col-chart"></div>
+        </div>
+
+        <div id="col-list"></div>
+
+        <div class="legend">
+          <div class="leg"><div class="leg-dot" style="background:var(--green)"></div> Well above (≥ 4.0)</div>
+          <div class="leg"><div class="leg-dot" style="background:var(--blue)"></div> Above GPA</div>
+          <div class="leg"><div class="leg-dot" style="background:var(--orange)"></div> Below GPA</div>
+          <div class="leg"><div class="leg-dot" style="background:var(--red)"></div> Well below (≤ 2.7)</div>
+        </div>
+        <footer>Weighted GPA = Σ(grade × credits) ÷ Σ(credits)</footer>
+      </div>
+    </div>
+
+    <!-- ── PAGE: Custom Scale ── -->
+    <div class="page" id="page-custom">
+      <div class="container">
+        <div class="page-header">
+          <h1>Custom Scale</h1>
+          <p>Define your own letter → points mapping, then calculate your GPA with it.</p>
+        </div>
+
+        <!-- Scale editor -->
+        <div style="margin-bottom:1.5rem">
+          <div style="font-size:14px;font-weight:500;margin-bottom:0.75rem">Grade scale</div>
+          <div class="scale-table">
+            <div class="scale-table-head">
+              <div>Letter</div><div>Points</div><div>Label (optional)</div><div></div>
+            </div>
+            <div id="scaleRows"></div>
+            <div class="scale-add-row">
+              <div class="field"><label>Letter</label><input type="text" id="sc-letter" placeholder="A+" style="width:80px" /></div>
+              <div class="field"><label>Points</label><input type="number" id="sc-points" placeholder="4.0" step="0.1" style="width:80px" /></div>
+              <div class="field"><label>Label</label><input type="text" id="sc-label" placeholder="Excellent" style="width:120px" /></div>
+              <button class="btn btn-primary btn-sm" onclick="scaleAdd()" style="align-self:flex-end">Add grade</button>
+            </div>
+          </div>
+          <button class="btn btn-sm" onclick="scaleReset()">Reset to default</button>
+        </div>
+
+        <!-- Courses with custom scale -->
+        <div style="font-size:14px;font-weight:500;margin-bottom:0.75rem">Courses</div>
+        <div class="add-form">
+          <div class="field">
+            <label>Course name</label>
+            <input type="text" id="cs-cName" placeholder="e.g. Art History" onkeydown="if(event.key==='Enter')csAdd()" />
+          </div>
+          <div class="field">
+            <label>Grade</label>
+            <select id="cs-cGrade"></select>
+          </div>
+          <button class="btn btn-primary" onclick="csAdd()">Add course</button>
+          <button class="btn" onclick="csReset()" style="margin-left:auto">Clear courses</button>
+        </div>
+
+        <div class="gpa-stat">
+          <span class="gpa-number" id="cs-gpaNum">—</span>
+          <span class="gpa-label">GPA (custom scale)</span>
+          <span class="gpa-letter" id="cs-gpaLetter"></span>
+        </div>
+
+        <div class="chart-wrap">
+          <div class="chart-title">Each bar shows how far a course sits from your GPA on your custom scale</div>
+          <div id="cs-chart"></div>
+        </div>
+
+        <div id="cs-list"></div>
+        <footer>Points are based on your custom scale above.</footer>
+      </div>
+    </div>
+
+    <!-- ── PAGE: What If ── -->
+    <div class="page" id="page-whatif">
+      <div class="container">
+        <div class="page-header">
+          <h1>What If…</h1>
+          <p>Drag any course's grade to see how your GPA would change hypothetically.</p>
+        </div>
+
+        <div class="hypothetical-banner">
+          🔮 <span>Changes here are <strong>hypothetical</strong> — they don't affect your real GPA in other modes.</span>
+        </div>
+
+        <div class="gpa-stat">
+          <div>
+            <div style="display:flex;align-items:baseline;gap:10px">
+              <span class="gpa-number" id="wi-gpaNum">—</span>
+              <span class="gpa-label">hypothetical GPA</span>
+              <span class="gpa-letter" id="wi-gpaLetter"></span>
+            </div>
+            <div style="font-size:13px;color:var(--text-muted);margin-top:4px">
+              Real GPA: <strong id="wi-realGpa">—</strong>
+              <span id="wi-delta" style="margin-left:6px;font-weight:600"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-wrap">
+          <div class="chart-title">Hypothetical GPA vs real GPA — drag sliders below to explore</div>
+          <div id="wi-chart"></div>
+        </div>
+
+        <div class="slider-list" id="wi-sliders"></div>
+
+        <div class="legend">
+          <div class="leg"><div class="leg-dot" style="background:var(--green)"></div> Well above (≥ 4.0)</div>
+          <div class="leg"><div class="leg-dot" style="background:var(--blue)"></div> Above GPA</div>
+          <div class="leg"><div class="leg-dot" style="background:var(--orange)"></div> Below GPA</div>
+          <div class="leg"><div class="leg-dot" style="background:var(--red)"></div> Well below (≤ 2.7)</div>
+        </div>
+        <footer>Uses your High School GPA courses as the baseline. Switch back to edit them.</footer>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* ══════════════════════════════════════
+   SHARED HELPERS
+══════════════════════════════════════ */
+const GRADE_STEPS = [4.3, 4.0, 3.7, 3.3, 3.0, 2.7, 2.3, 2.0, 1.7, 1.3, 1.0, 0.7, 0.0];
+const GRADE_LABELS = { 4.3:'A+', 4.0:'A', 3.7:'A−', 3.3:'B+', 3.0:'B', 2.7:'B−', 2.3:'C+', 2.0:'C', 1.7:'C−', 1.3:'D+', 1.0:'D', 0.7:'D−', 0.0:'F' };
+function gradeLabel(v){ return GRADE_LABELS[v] ?? v.toFixed(2); }
+
+const DEFAULT_HS = [
+  { name:'English', grade:3.7 }, { name:'Calculus', grade:4.0 },
+  { name:'History', grade:3.0 }, { name:'Chemistry', grade:2.3 },
+  { name:'PE', grade:4.3 },      { name:'Spanish', grade:2.7 },
+];
+
+function letterGrade(gpa){
+  if(gpa>=4.15) return 'A+'; if(gpa>=3.85) return 'A'; if(gpa>=3.5) return 'A−';
+  if(gpa>=3.15) return 'B+'; if(gpa>=2.85) return 'B'; if(gpa>=2.5) return 'B−';
+  if(gpa>=2.15) return 'C+'; if(gpa>=1.85) return 'C'; if(gpa>=1.5) return 'C−';
+  if(gpa>=1.15) return 'D+'; if(gpa>=0.85) return 'D'; if(gpa>=0.5) return 'D−';
+  return 'F';
+}
+
+function colorFor(grade, gpa){
+  if(grade>=4.0)  return { bar:'var(--green)',  text:'var(--green)'  };
+  if(grade> gpa)  return { bar:'var(--blue)',   text:'var(--blue)'   };
+  if(grade<=2.7)  return { bar:'var(--red)',    text:'var(--red)'    };
+  return                 { bar:'var(--orange)', text:'var(--orange)' };
+}
+
+function gpaColor(gpa){ return gpa>=4.0?'var(--green)':gpa>=3.0?'var(--blue)':gpa>=2.7?'var(--orange)':'var(--red)'; }
+function mean(arr){ return arr.reduce((a,b)=>a+b,0)/arr.length; }
+
+/* ── Generic chart renderer ── */
+function renderChart(containerId, courses, gpa, customMax){
+  const container = document.getElementById(containerId);
+  if(!courses.length){
+    container.innerHTML = '<div class="empty-chart"><span>No courses yet</span><span style="font-size:12px">Add a course above to get started</span></div>';
+    return;
+  }
+  const MAX_GPA = customMax ?? 4.5;
+  const MIN_GPA = 0;
+  const RANGE = MAX_GPA - MIN_GPA;
+  const CHART_H = 300;
+  const LABEL_H = 56;
+  const toY = v => CHART_H*(1-(v-MIN_GPA)/RANGE);
+  const meanY = toY(gpa);
+
+  const ticks = [0,1.0,2.0,2.7,3.0,3.3,4.0,4.3].filter(t=>t<=MAX_GPA+0.1);
+  let yAxis='', grid='';
+  ticks.forEach(t=>{
+    const y=toY(t);
+    yAxis+=`<div class="y-tick" style="bottom:${CHART_H-y-6}px">${t.toFixed(1)}</div>`;
+    const major=[0,1,2,3,4].includes(t);
+    grid+=`<div class="gridline${major?' major':''}" style="top:${y}px"></div>`;
+  });
+
+  let cols='';
+  courses.forEach((c,i)=>{
+    const grade = c.hypGrade ?? c.grade;
+    const pull = grade - gpa;
+    const colors = colorFor(grade, gpa);
+    const courseY = toY(grade);
+    const barTop = Math.min(meanY, courseY);
+    const barH   = Math.max(Math.abs(meanY-courseY), 4);
+    const credits = c.credits ? `<span class="credits-badge">${c.credits}cr</span>` : '';
+    cols+=`
+      <div class="col">
+        <div class="bar-seg" style="top:${barTop}px;height:${barH}px;background:${colors.bar};opacity:0.85">
+          ${barH>22?`<span class="bar-seg-label" style="color:#fff">${pull>=0?'+':''}${pull.toFixed(2)}</span>`:''}
+        </div>
+        <div class="mean-dot" style="top:${meanY-4}px"></div>
+        <div class="col-label">
+          <div class="col-grade" style="color:${colors.text}">${gradeLabel(grade)}</div>
+          ${credits}
+          <div class="col-name" title="${c.name}">${c.name}</div>
+          ${c.removeFn ? `<span class="col-remove" onclick="${c.removeFn}(${c.origIdx??i})">✕</span>` : ''}
+        </div>
+      </div>`;
+  });
+
+  container.innerHTML=`
+    <div style="display:flex;align-items:flex-start;gap:0">
+      <div class="y-axis" style="height:${CHART_H}px;position:relative">${yAxis}</div>
+      <div class="chart-inner" style="min-height:${CHART_H+LABEL_H}px;flex:1;position:relative">
+        ${grid}
+        <div class="mean-hline" style="top:${meanY}px">
+          <span class="mean-hline-label">GPA ${gpa.toFixed(2)}</span>
+        </div>
+        <div class="cols" style="height:${CHART_H}px;position:absolute;top:0;left:0;right:0">${cols}</div>
+      </div>
+    </div>`;
+}
+
+/* ── Generic course list renderer ── */
+function renderList(containerId, courses, gpa, removeFn){
+  const sorted=[...courses].map((c,i)=>({...c,i,pull:(c.hypGrade??c.grade)-gpa})).sort((a,b)=>b.pull-a.pull);
+  let html='<div class="course-list">';
+  sorted.forEach(c=>{
+    const grade = c.hypGrade ?? c.grade;
+    const colors = colorFor(grade, gpa);
+    const sign = c.pull>=0?'+':'';
+    const credits = c.credits ? `<span class="credits-badge">${c.credits}cr</span>` : '';
+    html+=`<div class="course-row">
+      <div class="course-dot" style="background:${colors.bar}"></div>
+      <div class="course-name">${c.name} ${credits}</div>
+      <div class="course-grade" style="color:${colors.text}">${gradeLabel(grade)}</div>
+      <div class="course-gpa" style="color:var(--text-faint)">${grade.toFixed(1)}</div>
+      <div class="course-pull" style="color:${colors.text}">${sign}${c.pull.toFixed(2)}</div>
+      <span class="course-rm" onclick="${removeFn}(${c.i})">✕</span>
+    </div>`;
+  });
+  html+='</div>';
+  document.getElementById(containerId).innerHTML=html;
+}
+
+/* ══════════════════════════════════════
+   PAGE: HIGH SCHOOL GPA
+══════════════════════════════════════ */
+let hsCourses = DEFAULT_HS.map(c=>({...c}));
+
+function hsAdd(){
+  const n=document.getElementById('hs-cName').value.trim()||'Course';
+  const g=parseFloat(document.getElementById('hs-cGrade').value);
+  hsCourses.push({name:n,grade:g});
+  document.getElementById('hs-cName').value='';
+  hsRender();
+}
+function hsRemove(i){ hsCourses.splice(i,1); hsRender(); }
+function hsReset(){ hsCourses=DEFAULT_HS.map(c=>({...c})); hsRender(); }
+
+function hsRender(){
+  if(!hsCourses.length){
+    document.getElementById('hs-gpaNum').textContent='—';
+    document.getElementById('hs-gpaLetter').textContent='';
+    document.getElementById('hs-chart').innerHTML='<div class="empty-chart"><span>No courses yet</span></div>';
+    document.getElementById('hs-list').innerHTML='';
+    return;
+  }
+  const gpa=mean(hsCourses.map(c=>c.grade));
+  const el=document.getElementById('hs-gpaNum');
+  el.textContent=gpa.toFixed(2); el.style.color=gpaColor(gpa);
+  document.getElementById('hs-gpaLetter').textContent=letterGrade(gpa);
+  const tagged=hsCourses.map((c,i)=>({...c,origIdx:i,removeFn:'hsRemove'}));
+  renderChart('hs-chart', tagged, gpa);
+  renderList('hs-list', tagged, gpa, 'hsRemove');
+  // keep what-if in sync if visible
+  if(document.getElementById('page-whatif').classList.contains('active')) wiRender();
+}
+
+/* ══════════════════════════════════════
+   PAGE: COLLEGE GPA
+══════════════════════════════════════ */
+let colCourses = [
+  {name:'English 101', grade:3.7, credits:3},
+  {name:'Calculus II', grade:4.0, credits:4},
+  {name:'History',     grade:3.0, credits:3},
+  {name:'Chemistry',   grade:2.3, credits:4},
+  {name:'Seminar',     grade:4.3, credits:1},
+];
+
+function weightedGPA(courses){
+  const totalCredits=courses.reduce((a,c)=>a+c.credits,0);
+  if(!totalCredits) return 0;
+  return courses.reduce((a,c)=>a+c.grade*c.credits,0)/totalCredits;
+}
+
+function colAdd(){
+  const n=document.getElementById('col-cName').value.trim()||'Course';
+  const g=parseFloat(document.getElementById('col-cGrade').value);
+  const cr=parseFloat(document.getElementById('col-credits').value)||3;
+  colCourses.push({name:n,grade:g,credits:cr});
+  document.getElementById('col-cName').value='';
+  colRender();
+}
+function colRemove(i){ colCourses.splice(i,1); colRender(); }
+function colReset(){ colCourses=[
+  {name:'English 101',grade:3.7,credits:3},{name:'Calculus II',grade:4.0,credits:4},
+  {name:'History',grade:3.0,credits:3},{name:'Chemistry',grade:2.3,credits:4},{name:'Seminar',grade:4.3,credits:1}
+]; colRender(); }
+
+function colRender(){
+  if(!colCourses.length){
+    document.getElementById('col-gpaNum').textContent='—';
+    document.getElementById('col-gpaLetter').textContent='';
+    document.getElementById('col-totalCredits').textContent='';
+    document.getElementById('col-chart').innerHTML='<div class="empty-chart"><span>No courses yet</span></div>';
+    document.getElementById('col-list').innerHTML='';
+    return;
+  }
+  const gpa=weightedGPA(colCourses);
+  const el=document.getElementById('col-gpaNum');
+  el.textContent=gpa.toFixed(2); el.style.color=gpaColor(gpa);
+  document.getElementById('col-gpaLetter').textContent=letterGrade(gpa);
+  const total=colCourses.reduce((a,c)=>a+c.credits,0);
+  document.getElementById('col-totalCredits').textContent=`${total} total credits`;
+  const tagged=colCourses.map((c,i)=>({...c,origIdx:i,removeFn:'colRemove'}));
+  renderChart('col-chart', tagged, gpa);
+  renderList('col-list', tagged, gpa, 'colRemove');
+}
+
+/* ══════════════════════════════════════
+   PAGE: CUSTOM SCALE
+══════════════════════════════════════ */
+let customScale = [
+  {letter:'A+',points:4.3,label:'Outstanding'},
+  {letter:'A', points:4.0,label:'Excellent'},
+  {letter:'A-',points:3.7,label:''},
+  {letter:'B+',points:3.3,label:''},
+  {letter:'B', points:3.0,label:'Good'},
+  {letter:'B-',points:2.7,label:''},
+  {letter:'C+',points:2.3,label:''},
+  {letter:'C', points:2.0,label:'Average'},
+  {letter:'C-',points:1.7,label:''},
+  {letter:'D+',points:1.3,label:''},
+  {letter:'D', points:1.0,label:'Passing'},
+  {letter:'D-',points:0.7,label:''},
+  {letter:'F', points:0.0,label:'Failing'},
+];
+let csCourses=[];
+
+function scaleRender(){
+  let html='';
+  customScale.forEach((s,i)=>{
+    html+=`<div class="scale-row">
+      <div class="scale-letter">${s.letter}</div>
+      <div><input type="number" class="scale-input" value="${s.points}" step="0.1" onchange="scaleUpdate(${i},this.value)" /></div>
+      <div><input type="text" class="scale-input" value="${s.label}" placeholder="—" style="width:120px" onchange="scaleLabelUpdate(${i},this.value)" /></div>
+      <div class="scale-rm" onclick="scaleRemove(${i})">✕</div>
+    </div>`;
+  });
+  document.getElementById('scaleRows').innerHTML=html;
+  // rebuild grade select
+  const sel=document.getElementById('cs-cGrade');
+  const prev=sel.value;
+  sel.innerHTML=customScale.map(s=>`<option value="${s.points}">${s.letter}${s.label?' — '+s.label:''}</option>`).join('');
+  if([...sel.options].some(o=>o.value===prev)) sel.value=prev;
+  csRender();
+}
+function scaleUpdate(i,v){ customScale[i].points=parseFloat(v)||0; scaleRender(); }
+function scaleLabelUpdate(i,v){ customScale[i].label=v; scaleRender(); }
+function scaleRemove(i){ customScale.splice(i,1); scaleRender(); }
+function scaleReset(){ customScale=[
+  {letter:'A+',points:4.3,label:'Outstanding'},{letter:'A',points:4.0,label:'Excellent'},
+  {letter:'A-',points:3.7,label:''},{letter:'B+',points:3.3,label:''},{letter:'B',points:3.0,label:'Good'},
+  {letter:'B-',points:2.7,label:''},{letter:'C+',points:2.3,label:''},{letter:'C',points:2.0,label:'Average'},
+  {letter:'C-',points:1.7,label:''},{letter:'D+',points:1.3,label:''},{letter:'D',points:1.0,label:'Passing'},
+  {letter:'D-',points:0.7,label:''},{letter:'F',points:0.0,label:'Failing'}
+]; scaleRender(); }
+function scaleAdd(){
+  const l=document.getElementById('sc-letter').value.trim();
+  const p=parseFloat(document.getElementById('sc-points').value);
+  const lb=document.getElementById('sc-label').value.trim();
+  if(!l||isNaN(p)) return;
+  customScale.push({letter:l,points:p,label:lb});
+  customScale.sort((a,b)=>b.points-a.points);
+  document.getElementById('sc-letter').value='';
+  document.getElementById('sc-points').value='';
+  document.getElementById('sc-label').value='';
+  scaleRender();
+}
+
+function csAdd(){
+  const n=document.getElementById('cs-cName').value.trim()||'Course';
+  const g=parseFloat(document.getElementById('cs-cGrade').value);
+  csCourses.push({name:n,grade:g});
+  document.getElementById('cs-cName').value='';
+  csRender();
+}
+function csRemove(i){ csCourses.splice(i,1); csRender(); }
+function csReset(){ csCourses=[]; csRender(); }
+
+function csRender(){
+  if(!csCourses.length){
+    document.getElementById('cs-gpaNum').textContent='—';
+    document.getElementById('cs-gpaLetter').textContent='';
+    document.getElementById('cs-chart').innerHTML='<div class="empty-chart"><span>No courses yet</span></div>';
+    document.getElementById('cs-list').innerHTML='';
+    return;
+  }
+  const gpa=mean(csCourses.map(c=>c.grade));
+  const maxPts=Math.max(...customScale.map(s=>s.points),4.3);
+  const el=document.getElementById('cs-gpaNum');
+  el.textContent=gpa.toFixed(2); el.style.color=gpaColor(gpa);
+  // letter from custom scale
+  const closest=customScale.reduce((best,s)=>Math.abs(s.points-gpa)<Math.abs(best.points-gpa)?s:best,customScale[0]);
+  document.getElementById('cs-gpaLetter').textContent=closest.letter;
+  const tagged=csCourses.map((c,i)=>({...c,origIdx:i,removeFn:'csRemove'}));
+  renderChart('cs-chart', tagged, gpa, maxPts+0.2);
+  renderList('cs-list', tagged, gpa, 'csRemove');
+}
+
+/* ══════════════════════════════════════
+   PAGE: WHAT IF
+══════════════════════════════════════ */
+let wiOverrides = {}; // index -> overridden grade value
+
+function wiRender(){
+  const base = hsCourses;
+  if(!base.length){
+    document.getElementById('wi-gpaNum').textContent='—';
+    document.getElementById('wi-gpaLetter').textContent='';
+    document.getElementById('wi-realGpa').textContent='—';
+    document.getElementById('wi-delta').textContent='';
+    document.getElementById('wi-chart').innerHTML='<div class="empty-chart"><span>Add courses in High School GPA mode first</span></div>';
+    document.getElementById('wi-sliders').innerHTML='';
+    return;
+  }
+
+  const realGpa = mean(base.map(c=>c.grade));
+  const hypCourses = base.map((c,i)=>({...c, hypGrade: wiOverrides[i]??c.grade}));
+  const hypGpa = mean(hypCourses.map(c=>c.hypGrade));
+
+  const numEl=document.getElementById('wi-gpaNum');
+  numEl.textContent=hypGpa.toFixed(2); numEl.style.color=gpaColor(hypGpa);
+  document.getElementById('wi-gpaLetter').textContent=letterGrade(hypGpa);
+  document.getElementById('wi-realGpa').textContent=realGpa.toFixed(2);
+  const delta=hypGpa-realGpa;
+  const deltaEl=document.getElementById('wi-delta');
+  deltaEl.textContent=delta===0?'':(delta>0?`▲ +${delta.toFixed(2)}`:`▼ ${delta.toFixed(2)}`);
+  deltaEl.style.color=delta>0?'var(--green)':delta<0?'var(--red)':'var(--text-faint)';
+
+  // Chart — show hyp grades
+  const tagged=hypCourses.map((c,i)=>({...c,grade:c.hypGrade,origIdx:i}));
+  renderChart('wi-chart', tagged, hypGpa);
+
+  // Sliders
+  let html='';
+  base.forEach((c,i)=>{
+    const hypGrade = wiOverrides[i]??c.grade;
+    const colors = colorFor(hypGrade, hypGpa);
+    const diff = hypGrade - c.grade;
+    const diffStr = diff===0?'Same as real':diff>0?`▲ +${diff.toFixed(2)} from real`:`▼ ${diff.toFixed(2)} from real`;
+    const diffColor = diff>0?'var(--green)':diff<0?'var(--red)':'var(--text-faint)';
+    // slider value is index into GRADE_STEPS
+    const stepIdx = GRADE_STEPS.indexOf(hypGrade);
+    const realIdx = GRADE_STEPS.indexOf(c.grade);
+    html+=`<div class="slider-row">
+      <div class="slider-top">
+        <div class="slider-name">${c.name}</div>
+        <div class="slider-real" style="color:var(--text-faint)">Real: ${gradeLabel(c.grade)}</div>
+        <div class="slider-hyp" style="color:${colors.text}">${gradeLabel(hypGrade)}</div>
+      </div>
+      <input type="range" min="0" max="${GRADE_STEPS.length-1}" step="1"
+        value="${stepIdx>=0?stepIdx:realIdx}"
+        oninput="wiUpdate(${i},this.value)" />
+      <div class="slider-delta" style="color:${diffColor}">${diffStr}</div>
+    </div>`;
+  });
+  document.getElementById('wi-sliders').innerHTML=html;
+}
+
+function wiUpdate(courseIdx, stepIdx){
+  wiOverrides[courseIdx]=GRADE_STEPS[parseInt(stepIdx)];
+  wiRender();
+}
+
+/* ══════════════════════════════════════
+   NAV
+══════════════════════════════════════ */
+function switchPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.getElementById('nav-'+id).classList.add('active');
+  // re-render on switch so data is fresh
+  if(id==='hs')     hsRender();
+  if(id==='college')colRender();
+  if(id==='custom') scaleRender();
+  if(id==='whatif') wiRender();
+}
+
+/* ══ INIT ══ */
+hsRender();
+colRender();
+scaleRender();
+</script>
+</body>
+</html>
