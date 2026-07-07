@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>GPA Visualizer</title>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<div class="app">
+
+<!-- ══ SIDEBAR ══ -->
+<nav class="sidebar">
+  <div class="sb-logo">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <rect x="2"    y="11" width="3" height="7"  rx="1" fill="var(--blue)"   opacity=".5"/>
+      <rect x="6.5"  y="5"  width="3" height="13" rx="1" fill="var(--green)"/>
+      <rect x="11"   y="8"  width="3" height="10" rx="1" fill="var(--orange)" opacity=".75"/>
+      <rect x="15.5" y="2"  width="3" height="16" rx="1" fill="var(--green)"/>
+      <line x1="1" y1="13" x2="19" y2="13" stroke="var(--gline)" stroke-width="1.5"/>
+    </svg>
+    <span class="sb-logo-txt">GPA Visualizer</span>
+  </div>
+
+  <div class="sb-nav">
+    <div class="nav-lbl" style="padding:8px 13px 3px;font-size:10px;font-weight:700;color:var(--txf);text-transform:uppercase;letter-spacing:.06em">Modes</div>
+
+    <button class="nav-item active" onclick="switchPage('hs')" id="nav-hs">
+      <span class="nav-icon">🎓</span>
+      <span class="nav-lbl">High School</span>
+    </button>
+    <button class="nav-item" onclick="switchPage('college')" id="nav-college">
+      <span class="nav-icon">🏛️</span>
+      <span class="nav-lbl">College GPA</span>
+      <span class="nav-badge">Credits</span>
+    </button>
+    <button class="nav-item" onclick="switchPage('custom')" id="nav-custom">
+      <span class="nav-icon">⚙️</span>
+      <span class="nav-lbl">Custom Scale</span>
+    </button>
+
+    <div class="sb-div"></div>
+    <div class="nav-lbl" style="padding:4px 13px 3px;font-size:10px;font-weight:700;color:var(--txf);text-transform:uppercase;letter-spacing:.06em">Tools</div>
+
+    <button class="nav-item" onclick="switchPage('whatif')" id="nav-whatif">
+      <span class="nav-icon">🔮</span>
+      <span class="nav-lbl">What If…</span>
+      <span class="nav-badge">Hypo</span>
+    </button>
+  </div>
+
+  <div class="sb-bottom">
+    <button class="theme-toggle" onclick="toggleTheme()">
+      <span class="nav-icon" id="theme-icon">🌙</span>
+      <span class="nav-lbl" id="theme-lbl">Dark mode</span>
+      <div class="toggle-track"><div class="toggle-thumb"></div></div>
+    </button>
+  </div>
+</nav>
+
+<!-- ══ PAGES ══ -->
+<main class="main">
+
+  <!-- ── High School GPA ── -->
+  <div class="page active" id="page-hs">
+    <div class="container">
+      <div class="page-header">
+        <h1>High School GPA</h1>
+        <p>See how each course pulls your cumulative GPA up or down.</p>
+      </div>
+
+      <div class="card">
+        <div class="add-form">
+          <div class="field">
+            <label>Course</label>
+            <input type="text" id="hs-name" placeholder="e.g. Calculus" onkeydown="if(event.key==='Enter')hsAdd()"/>
+          </div>
+          <div class="field">
+            <label>Grade</label>
+            <select id="hs-grade">
+              <option value="4.3">A+</option><option value="4.0" selected>A</option><option value="3.7">A−</option>
+              <option value="3.3">B+</option><option value="3.0">B</option><option value="2.7">B−</option>
+              <option value="2.3">C+</option><option value="2.0">C</option><option value="1.7">C−</option>
+              <option value="1.3">D+</option><option value="1.0">D</option><option value="0.7">D−</option>
+              <option value="0.0">F</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="hsAdd()">Add course</button>
+          <button class="btn-sample" onclick="hsAddSample()" title="Add a sample course with a random grade">+ Sample</button>
+          <button class="btn btn-ghost btn-sm" onclick="hsClear()" style="margin-left:auto">Clear all</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="gpa-card">
+          <span class="gpa-num" id="hs-num">—</span>
+          <span class="gpa-lbl">cumulative GPA</span>
+          <span class="gpa-letter" id="hs-letter"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="chart-title">Above the line = pulling GPA up · Below = pulling it down · Height = magnitude</div>
+        <div id="hs-chart"></div>
+      </div>
+
+      <div id="hs-list"></div>
+
+      <div class="legend">
+        <div class="leg"><div class="leg-dot" style="background:var(--green)"></div>≥ 4.0 (well above)</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--blue)"></div>Above GPA</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--orange)"></div>Below GPA</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--red)"></div>≤ 2.7 (well below)</div>
+      </div>
+      <footer>A+=4.3 · A=4.0 · A−=3.7 · B+=3.3 · B=3.0 · B−=2.7 · C+=2.3 · C=2.0 · C−=1.7 · D+=1.3 · D=1.0 · D−=0.7 · F=0.0</footer>
+    </div>
+  </div>
+
+  <!-- ── College GPA ── -->
+  <div class="page" id="page-college">
+    <div class="container">
+      <div class="page-header">
+        <h1>College GPA</h1>
+        <p>Weighted by credit hours — a 4-credit A pulls harder than a 1-credit A.</p>
+      </div>
+
+      <div class="card">
+        <div class="add-form">
+          <div class="field">
+            <label>Course</label>
+            <input type="text" id="col-name" placeholder="e.g. Organic Chem" onkeydown="if(event.key==='Enter')colAdd()"/>
+          </div>
+          <div class="field">
+            <label>Grade</label>
+            <select id="col-grade">
+              <option value="4.3">A+</option><option value="4.0" selected>A</option><option value="3.7">A−</option>
+              <option value="3.3">B+</option><option value="3.0">B</option><option value="2.7">B−</option>
+              <option value="2.3">C+</option><option value="2.0">C</option><option value="1.7">C−</option>
+              <option value="1.3">D+</option><option value="1.0">D</option><option value="0.7">D−</option>
+              <option value="0.0">F</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Credits</label>
+            <input type="number" id="col-credits" value="3" min=".5" max="6" step=".5"/>
+          </div>
+          <button class="btn btn-primary" onclick="colAdd()">Add course</button>
+          <button class="btn-sample" onclick="colAddSample()">+ Sample</button>
+          <button class="btn btn-ghost btn-sm" onclick="colClear()" style="margin-left:auto">Clear all</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="gpa-card">
+          <span class="gpa-num" id="col-num">—</span>
+          <span class="gpa-lbl">weighted GPA</span>
+          <span class="gpa-letter" id="col-letter"></span>
+          <span style="margin-left:auto;font-size:12px;color:var(--txm)" id="col-credits-total"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="chart-title">Bar height scaled by credit weight · above line = GPA boost · below = drag</div>
+        <div id="col-chart"></div>
+      </div>
+
+      <div id="col-list"></div>
+
+      <div class="legend">
+        <div class="leg"><div class="leg-dot" style="background:var(--green)"></div>≥ 4.0</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--blue)"></div>Above GPA</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--orange)"></div>Below GPA</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--red)"></div>≤ 2.7</div>
+      </div>
+      <footer>Weighted GPA = Σ(grade × credits) ÷ Σ(credits)</footer>
+    </div>
+  </div>
+
+  <!-- ── Custom Scale ── -->
+  <div class="page" id="page-custom">
+    <div class="container">
+      <div class="page-header">
+        <h1>Custom Scale</h1>
+        <p>Define your own letter → points mapping and calculate your GPA on it.</p>
+      </div>
+
+      <div class="sec-hd">Grade scale</div>
+      <div class="scale-table">
+        <div class="scale-head">
+          <div>Letter</div><div>Points</div><div>Label</div><div></div>
+        </div>
+        <div id="sc-rows"></div>
+        <div class="scale-add">
+          <div class="field"><label>Letter</label><input type="text" id="sc-letter" placeholder="A+" style="width:70px"/></div>
+          <div class="field"><label>Points</label><input type="number" id="sc-pts" placeholder="4.0" step=".1" style="width:76px"/></div>
+          <div class="field"><label>Label</label><input type="text" id="sc-lbl" placeholder="Excellent" style="width:120px"/></div>
+          <button class="btn btn-primary btn-sm" onclick="scAdd()" style="align-self:flex-end">Add</button>
+        </div>
+      </div>
+      <button class="btn btn-sm btn-ghost" onclick="scReset()" style="margin-bottom:1.5rem">Reset to default</button>
+
+      <div class="sec-hd">Courses</div>
+      <div class="card">
+        <div class="add-form">
+          <div class="field">
+            <label>Course</label>
+            <input type="text" id="cs-name" placeholder="e.g. Art History" onkeydown="if(event.key==='Enter')csAdd()"/>
+          </div>
+          <div class="field">
+            <label>Grade</label>
+            <select id="cs-grade"></select>
+          </div>
+          <button class="btn btn-primary" onclick="csAdd()">Add course</button>
+          <button class="btn-sample" onclick="csAddSample()">+ Sample</button>
+          <button class="btn btn-ghost btn-sm" onclick="csClear()" style="margin-left:auto">Clear all</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="gpa-card">
+          <span class="gpa-num" id="cs-num">—</span>
+          <span class="gpa-lbl">GPA (custom)</span>
+          <span class="gpa-letter" id="cs-letter"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="chart-title">Based on your custom grade scale</div>
+        <div id="cs-chart"></div>
+      </div>
+
+      <div id="cs-list"></div>
+      <footer>Points are defined by your custom scale above.</footer>
+    </div>
+  </div>
+
+  <!-- ── What If ── -->
+  <div class="page" id="page-whatif">
+    <div class="container">
+      <div class="page-header">
+        <h1>What If…</h1>
+        <p>Explore how changing a grade would shift your GPA — without touching real data.</p>
+      </div>
+
+      <div class="wi-mode-bar">
+        <button class="wi-mode-btn active" id="wi-btn-hs"      onclick="wiSetMode('hs')">High School</button>
+        <button class="wi-mode-btn"        id="wi-btn-college"  onclick="wiSetMode('college')">College</button>
+        <button class="wi-mode-btn"        id="wi-btn-custom"   onclick="wiSetMode('custom')">Custom</button>
+      </div>
+
+      <div class="hyp-banner">
+        🔮 <span>These changes are <strong>hypothetical</strong> — your courses in other modes are untouched.</span>
+      </div>
+
+      <div class="card">
+        <div class="gpa-card">
+          <div>
+            <div style="display:flex;align-items:baseline;gap:10px">
+              <span class="gpa-num" id="wi-num">—</span>
+              <span class="gpa-lbl">hypothetical GPA</span>
+              <span class="gpa-letter" id="wi-letter"></span>
+            </div>
+            <div style="font-size:12px;color:var(--txm);margin-top:4px">
+              Real GPA: <strong id="wi-real">—</strong>
+              <span id="wi-delta" style="margin-left:6px;font-weight:700"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="chart-title">Hypothetical positions — drag sliders below</div>
+        <div id="wi-chart"></div>
+      </div>
+
+      <div class="slider-list" id="wi-sliders"></div>
+
+      <div class="legend">
+        <div class="leg"><div class="leg-dot" style="background:var(--green)"></div>≥ 4.0</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--blue)"></div>Above GPA</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--orange)"></div>Below GPA</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--red)"></div>≤ 2.7</div>
+      </div>
+      <footer>Uses courses from the selected mode as baseline. Switch modes above to compare.</footer>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
