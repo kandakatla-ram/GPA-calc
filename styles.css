@@ -33,14 +33,14 @@ html,body{
   transition:background .2s,color .2s;
 }
 
-/* ── Layout ── */
+/* ── App layout ── */
 .app{display:flex;min-height:100vh}
 .main{margin-left:var(--si);flex:1;padding:2rem 1.5rem 4rem;min-width:0}
 .container{max-width:720px;margin:0 auto}
 .page{display:none}
 .page.active{display:block}
 
-/* ══ SIDEBAR ══ */
+/* ── Sidebar ── */
 .sidebar{
   position:fixed;left:0;top:0;bottom:0;width:var(--si);
   background:var(--surface);border-right:.5px solid var(--bmed);
@@ -61,6 +61,11 @@ html,body{
 .sidebar:hover .sb-logo-txt{opacity:1}
 
 .sb-nav{flex:1;padding:8px 0;display:flex;flex-direction:column;gap:1px;overflow:hidden}
+.sb-section-lbl{
+  padding:8px 13px 3px;font-size:10px;font-weight:700;color:var(--txf);
+  text-transform:uppercase;letter-spacing:.06em;opacity:0;transition:opacity .15s .04s;
+}
+.sidebar:hover .sb-section-lbl{opacity:1}
 
 .nav-item{
   display:flex;align-items:center;gap:10px;padding:9px 13px;
@@ -75,7 +80,10 @@ html,body{
   content:'';position:absolute;left:0;top:7px;bottom:7px;
   width:3px;background:var(--blue);border-radius:0 3px 3px 0;
 }
-.nav-icon{width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px}
+.nav-icon{
+  width:20px;height:20px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:15px;
+}
 .nav-lbl,.nav-badge{opacity:0;transition:opacity .15s .04s}
 .sidebar:hover .nav-lbl,.sidebar:hover .nav-badge{opacity:1}
 .nav-badge{
@@ -84,7 +92,7 @@ html,body{
 }
 .sb-div{height:.5px;background:var(--border);margin:5px 10px}
 
-/* Sidebar bottom / theme toggle */
+/* ── Sidebar bottom: theme toggle ── */
 .sb-bottom{padding:10px 0;border-top:.5px solid var(--border);flex-shrink:0}
 .theme-toggle{
   display:flex;align-items:center;gap:10px;padding:9px 13px;
@@ -105,16 +113,18 @@ html,body{
 [data-theme="dark"] .toggle-track{background:var(--blue)}
 [data-theme="dark"] .toggle-thumb{transform:translateX(13px);background:#fff}
 
-/* ══ PAGE HEADERS ══ */
+/* ── Page header ── */
 .page-header{margin-bottom:1.75rem}
 .page-header h1{font-size:23px;font-weight:700;letter-spacing:-.5px}
 .page-header p{font-size:13px;color:var(--txm);margin-top:3px}
 
-/* ══ CARDS & FORMS ══ */
+/* ── Cards ── */
 .card{
   background:var(--surface);border:.5px solid var(--bmed);
   border-radius:var(--rl);padding:1rem 1.25rem;margin-bottom:1.25rem;
 }
+
+/* ── Forms ── */
 .add-form{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
 .field{display:flex;flex-direction:column;gap:4px}
 .field label{font-size:11px;color:var(--txm);font-weight:500;text-transform:uppercase;letter-spacing:.04em}
@@ -122,8 +132,8 @@ html,body{
 input[type=text],input[type=number],select{
   height:34px;padding:0 10px;font-size:13px;
   border:.5px solid var(--bmed);border-radius:var(--r);
-  background:var(--s2);color:var(--tx);outline:none;
-  font-family:inherit;transition:border-color .15s,box-shadow .15s;
+  background:var(--s2);color:var(--tx);outline:none;font-family:inherit;
+  transition:border-color .15s,box-shadow .15s;
 }
 input[type=text]:focus,input[type=number]:focus,select:focus{
   border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,96,176,.12);
@@ -132,7 +142,7 @@ input[type=text]{width:160px}
 input[type=number]{width:76px}
 select{width:106px;cursor:pointer}
 
-/* ══ BUTTONS ══ */
+/* ── Buttons ── */
 .btn{
   height:34px;padding:0 14px;font-size:13px;font-weight:500;
   border-radius:var(--r);cursor:pointer;border:.5px solid var(--bmed);
@@ -153,27 +163,35 @@ select{width:106px;cursor:pointer}
 }
 .btn-sample:hover{background:var(--blue);color:#fff}
 
-/* ══ GPA STAT CARD ══ */
+/* ── GPA stat card ── */
 .gpa-card{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .gpa-num{font-size:42px;font-weight:800;letter-spacing:-2px;line-height:1;transition:color .25s}
 .gpa-lbl{font-size:13px;color:var(--txm)}
 .gpa-letter{font-size:20px;font-weight:700;margin-left:auto}
 
-/* ══ CHART ══ */
+/* ── Chart ── */
 .chart-title{font-size:12px;color:var(--txm);margin-bottom:1.1rem}
 .y-axis{width:34px;flex-shrink:0;position:relative}
 .y-tick{position:absolute;right:5px;font-size:10px;color:var(--txf);transform:translateY(50%);line-height:1}
 .chart-inner{flex:1;position:relative}
 .gridline{position:absolute;left:0;right:0;height:1px;background:var(--border)}
 .gridline.major{background:var(--bmed)}
-.mean-hline{position:absolute;left:0;right:0;height:2px;background:var(--gline);z-index:5;transition:top .35s ease}
-.mean-hline-lbl{position:absolute;right:4px;top:-17px;font-size:11px;color:var(--gline);font-weight:700;white-space:nowrap}
-.cols{position:absolute;top:0;left:0;right:0;display:flex;align-items:flex-start;gap:6px;padding:0 6px}
+.mean-hline{
+  position:absolute;left:0;right:0;height:2px;
+  background:var(--gline);z-index:5;transition:top .35s ease;
+}
+.mean-hline-lbl{
+  position:absolute;right:4px;top:-17px;
+  font-size:11px;color:var(--gline);font-weight:700;white-space:nowrap;
+}
+.cols{
+  position:absolute;top:0;left:0;right:0;
+  display:flex;align-items:flex-start;gap:6px;padding:0 6px;
+}
 .col{flex:1;height:100%;position:relative;display:flex;flex-direction:column;align-items:center}
 .bar-seg{
   position:absolute;width:100%;border-radius:4px;opacity:.87;
   transition:height .35s ease,top .35s ease;
-  display:flex;align-items:center;justify-content:center;overflow:visible;
 }
 .bar-pull-lbl{
   position:absolute;font-size:9px;font-weight:700;white-space:nowrap;
@@ -187,38 +205,48 @@ select{width:106px;cursor:pointer}
 .col-label{position:absolute;bottom:-54px;width:100%;text-align:center}
 .col-grade{font-size:12px;font-weight:700;line-height:1.4}
 .col-name{font-size:9px;color:var(--txm);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3}
-.col-sample-tag{font-size:8px;color:var(--blue);background:var(--bbg);border-radius:3px;padding:0 3px;line-height:1.5;display:inline-block}
+.col-sample-tag{
+  font-size:8px;color:var(--blue);background:var(--bbg);
+  border-radius:3px;padding:0 3px;line-height:1.5;display:inline-block;
+}
 .col-rm{font-size:9px;color:var(--txf);cursor:pointer;line-height:1.8}
 .col-rm:hover{color:var(--red)}
-.empty-chart{display:flex;align-items:center;justify-content:center;min-height:180px;flex-direction:column;gap:6px;color:var(--txf);font-size:13px}
+.empty-chart{
+  display:flex;align-items:center;justify-content:center;
+  min-height:180px;flex-direction:column;gap:6px;color:var(--txf);font-size:13px;
+}
 
-/* ══ COURSE LIST ══ */
+/* ── Course list ── */
 .course-list{display:flex;flex-direction:column;gap:5px;margin-bottom:1.25rem}
 .course-row{
-  background:var(--surface);border:.5px solid var(--bmed);
-  border-radius:var(--r);padding:9px 13px;
-  display:flex;align-items:center;gap:9px;
+  background:var(--surface);border:.5px solid var(--bmed);border-radius:var(--r);
+  padding:9px 13px;display:flex;align-items:center;gap:9px;
 }
 .c-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 .c-name{flex:1;font-size:13px}
-.c-sample{font-size:9px;color:var(--blue);background:var(--bbg);padding:1px 5px;border-radius:3px;margin-left:4px;font-weight:600}
+.c-sample{
+  font-size:9px;color:var(--blue);background:var(--bbg);
+  padding:1px 5px;border-radius:3px;margin-left:4px;font-weight:600;
+}
 .c-grade{font-size:13px;font-weight:700;width:28px;text-align:right}
 .c-pts{font-size:12px;color:var(--txf);width:26px;text-align:right}
 .c-pull{font-size:12px;font-weight:600;width:55px;text-align:right}
 .c-rm{font-size:11px;color:var(--txf);cursor:pointer;margin-left:2px}
 .c-rm:hover{color:var(--red)}
-.credits-badge{font-size:10px;background:var(--gbg);color:var(--green);padding:1px 6px;border-radius:20px;font-weight:600;margin-left:4px}
+.credits-badge{
+  font-size:10px;background:var(--gbg);color:var(--green);
+  padding:1px 6px;border-radius:20px;font-weight:600;margin-left:4px;
+}
 
-/* ══ LEGEND ══ */
+/* ── Legend ── */
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--txm);margin-bottom:.5rem}
 .leg{display:flex;align-items:center;gap:5px}
 .leg-dot{width:9px;height:9px;border-radius:2px}
 
-/* ══ WHAT IF MODE TOGGLE ══ */
+/* ── What If mode toggle ── */
 .wi-mode-bar{
-  display:flex;align-items:center;gap:10px;
-  background:var(--s2);border-radius:var(--rl);padding:4px;
-  width:fit-content;margin-bottom:1.25rem;
+  display:flex;align-items:center;background:var(--s2);
+  border-radius:var(--rl);padding:4px;width:fit-content;margin-bottom:1.25rem;
 }
 .wi-mode-btn{
   padding:6px 16px;font-size:13px;font-weight:500;border-radius:10px;
@@ -233,7 +261,7 @@ select{width:106px;cursor:pointer}
   display:flex;align-items:center;gap:7px;
 }
 
-/* ══ SLIDERS ══ */
+/* ── Sliders ── */
 .slider-list{display:flex;flex-direction:column;gap:8px;margin-bottom:1.25rem}
 .slider-row{background:var(--surface);border:.5px solid var(--bmed);border-radius:var(--r);padding:11px 13px}
 .slider-top{display:flex;align-items:center;gap:8px;margin-bottom:7px}
@@ -246,13 +274,15 @@ input[type=range]{
 }
 .slider-delta{font-size:11px;font-weight:600;margin-top:3px;text-align:right}
 
-/* ══ CUSTOM SCALE TABLE ══ */
-.scale-table{background:var(--surface);border:.5px solid var(--bmed);border-radius:var(--rl);overflow:hidden;margin-bottom:1.25rem}
+/* ── Custom scale table ── */
+.scale-table{
+  background:var(--surface);border:.5px solid var(--bmed);
+  border-radius:var(--rl);overflow:hidden;margin-bottom:1.25rem;
+}
 .scale-head{
   display:grid;grid-template-columns:70px 100px 1fr 36px;
-  padding:7px 13px;background:var(--s2);
-  font-size:11px;color:var(--txm);font-weight:600;
-  text-transform:uppercase;letter-spacing:.04em;
+  padding:7px 13px;background:var(--s2);font-size:11px;color:var(--txm);
+  font-weight:600;text-transform:uppercase;letter-spacing:.04em;
   border-bottom:.5px solid var(--bmed);
 }
 .scale-row{
@@ -267,6 +297,7 @@ input[type=range]{
 .scale-rm:hover{color:var(--red)}
 .scale-add{display:flex;gap:8px;align-items:flex-end;padding:11px 13px;border-top:.5px solid var(--bmed)}
 
-/* ══ MISC ══ */
+/* ── Section heading ── */
 .sec-hd{font-size:11px;font-weight:700;color:var(--txf);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem}
+
 footer{margin-top:2.5rem;font-size:11px;color:var(--txf);border-top:.5px solid var(--border);padding-top:1rem}
