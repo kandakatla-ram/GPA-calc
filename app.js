@@ -53,6 +53,12 @@ function renderChart(id, courses, gpa, maxY = 4.5) {
   }
 
   const H = 290, LH = 58;
+  // Minimum width (px) reserved per course column. Once courses × this
+  // exceeds the available space, the chart becomes horizontally
+  // scrollable instead of squeezing columns until labels overlap.
+  const COL_MIN = 56;
+  const innerW = courses.length * COL_MIN;
+
   const toY = v => H * (1 - (v / maxY));
   const mY = toY(gpa);
   const ticks = [0, 1, 2, 2.7, 3, 3.3, 4, 4.3].filter(t => t <= maxY + 0.05);
@@ -94,17 +100,36 @@ function renderChart(id, courses, gpa, maxY = 4.5) {
     </div>`;
   });
 
+  // Heuristic: once the content is wide enough that it's likely to
+  // outgrow the card, show a small "scroll for more" hint.
+  const showHint = innerW > 620;
+  const scrollId = `${id}-scroll`;
+
   el.innerHTML = `
     <div style="display:flex;align-items:flex-start">
       <div class="y-axis" style="height:${H}px;position:relative">${yAxis}</div>
-      <div class="chart-inner" style="flex:1;min-height:${H + LH}px;position:relative">
-        ${grid}
-        <div class="mean-hline" style="top:${mY}px">
-          <span class="mean-hline-lbl">GPA ${gpa.toFixed(2)}</span>
+      <div class="chart-scroll" id="${scrollId}">
+        <div class="chart-inner" style="min-height:${H + LH}px;position:relative;width:${innerW}px;min-width:100%">
+          ${grid}
+          <div class="mean-hline" style="top:${mY}px">
+            <span class="mean-hline-lbl">GPA ${gpa.toFixed(2)}</span>
+          </div>
+          <div class="cols" style="height:${H}px;position:absolute;top:0;left:0;right:0">${cols}</div>
         </div>
-        <div class="cols" style="height:${H}px;position:absolute;top:0;left:0;right:0">${cols}</div>
       </div>
-    </div>`;
+    </div>
+    ${showHint ? `<div class="scroll-hint" id="${scrollId}-hint">scroll for more →</div>` : ''}`;
+
+  if (showHint) {
+    const scrollEl = document.getElementById(scrollId);
+    const hintEl   = document.getElementById(scrollId + '-hint');
+    const updateHint = () => {
+      const atEnd = scrollEl.scrollLeft + scrollEl.clientWidth >= scrollEl.scrollWidth - 4;
+      hintEl.classList.toggle('faded', atEnd);
+    };
+    scrollEl.addEventListener('scroll', updateHint, { passive: true });
+    updateHint();
+  }
 }
 
 /* ══════════════════════════════════════════
