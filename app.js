@@ -27,10 +27,10 @@ function letterGrade(g) {
 }
 
 function colorFor(grade, gpa) {
-  if (grade >= 4.0) return { bar: 'var(--green)', text: 'var(--green)' };
-  if (grade >  gpa) return { bar: 'var(--blue)',  text: 'var(--blue)'  };
-  if (grade <= 2.7) return { bar: 'var(--red)',   text: 'var(--red)'   };
-  return                   { bar: 'var(--orange)',text: 'var(--orange)'};
+  if (grade >= 4.0) return { bar: 'var(--green)', text: 'var(--green)', bg: 'var(--gbg)' };
+  if (grade >  gpa) return { bar: 'var(--blue)',  text: 'var(--blue)',  bg: 'var(--bbg)' };
+  if (grade <= 2.7) return { bar: 'var(--red)',   text: 'var(--red)',   bg: 'var(--rbg)' };
+  return                   { bar: 'var(--orange)',text: 'var(--orange)',bg: 'var(--obg)' };
 }
 
 function randGrade() {
@@ -87,7 +87,7 @@ function renderChart(id, courses, gpa, maxY = 4.5) {
 
     cols += `<div class="col">
       <div class="bar-seg" style="top:${top}px;height:${bH}px;background:${col.bar}"></div>
-      <div class="bar-pull-lbl" style="top:${lblTop}px;left:50%;transform:translateX(-50%);color:${col.text};background:${col.bar}22">
+      <div class="bar-pull-lbl" style="top:${lblTop}px;left:50%;transform:translateX(-50%);color:${col.text};background:${col.bg}">
         ${pull >= 0 ? '+' : ''}${pull.toFixed(2)}
       </div>
       <div class="mean-dot" style="top:${mY - 3.5}px"></div>
@@ -171,16 +171,24 @@ function hsAdd() {
   const g = parseFloat(document.getElementById('hs-grade').value);
   hsCourses.push({ name: n, grade: g });
   document.getElementById('hs-name').value = '';
-  hsRender(); wiRender();
+  hsRender();
 }
 
 function hsAddSample() {
   hsCourses.push({ name: randName(hsCourses.map(c => c.name)), grade: randGrade(), sample: true });
-  hsRender(); wiRender();
+  hsRender();
 }
 
-function hsRemove(i) { hsCourses.splice(i, 1); hsRender(); wiRender(); }
-function hsClear()   { hsCourses = []; hsRender(); wiRender(); }
+function hsRemove(i) {
+  hsCourses.splice(i, 1);
+  if (wiMode === 'hs') wiOverrides = {};
+  hsRender();
+}
+function hsClear() {
+  hsCourses = [];
+  if (wiMode === 'hs') wiOverrides = {};
+  hsRender();
+}
 
 function hsRender() {
   const el = document.getElementById('hs-num');
@@ -210,17 +218,25 @@ function colAdd() {
   const cr = parseFloat(document.getElementById('col-credits').value) || 3;
   colCourses.push({ name: n, grade: g, credits: cr });
   document.getElementById('col-name').value = '';
-  colRender(); wiRender();
+  colRender();
 }
 
 function colAddSample() {
   const crs = [1, 2, 3, 3, 4, 4][Math.floor(Math.random() * 6)];
   colCourses.push({ name: randName(colCourses.map(c => c.name)), grade: randGrade(), credits: crs, sample: true });
-  colRender(); wiRender();
+  colRender();
 }
 
-function colRemove(i) { colCourses.splice(i, 1); colRender(); wiRender(); }
-function colClear()   { colCourses = []; colRender(); wiRender(); }
+function colRemove(i) {
+  colCourses.splice(i, 1);
+  if (wiMode === 'college') wiOverrides = {};
+  colRender();
+}
+function colClear() {
+  colCourses = [];
+  if (wiMode === 'college') wiOverrides = {};
+  colRender();
+}
 
 function colRender() {
   const el = document.getElementById('col-num');
@@ -244,15 +260,18 @@ function colRender() {
 /* ══════════════════════════════════════════
    CUSTOM SCALE
 ══════════════════════════════════════════ */
-let customScale = [
-  {letter:'A+',pts:4.3,lbl:'Outstanding'}, {letter:'A', pts:4.0,lbl:'Excellent'},
-  {letter:'A-',pts:3.7,lbl:''},            {letter:'B+',pts:3.3,lbl:''},
-  {letter:'B', pts:3.0,lbl:'Good'},        {letter:'B-',pts:2.7,lbl:''},
-  {letter:'C+',pts:2.3,lbl:''},            {letter:'C', pts:2.0,lbl:'Average'},
-  {letter:'C-',pts:1.7,lbl:''},            {letter:'D+',pts:1.3,lbl:''},
-  {letter:'D', pts:1.0,lbl:'Passing'},     {letter:'D-',pts:0.7,lbl:''},
-  {letter:'F', pts:0.0,lbl:'Failing'}
-];
+function defaultScale() {
+  return [
+    {letter:'A+',pts:4.3,lbl:'Outstanding'}, {letter:'A', pts:4.0,lbl:'Excellent'},
+    {letter:'A-',pts:3.7,lbl:''},            {letter:'B+',pts:3.3,lbl:''},
+    {letter:'B', pts:3.0,lbl:'Good'},        {letter:'B-',pts:2.7,lbl:''},
+    {letter:'C+',pts:2.3,lbl:''},            {letter:'C', pts:2.0,lbl:'Average'},
+    {letter:'C-',pts:1.7,lbl:''},            {letter:'D+',pts:1.3,lbl:''},
+    {letter:'D', pts:1.0,lbl:'Passing'},     {letter:'D-',pts:0.7,lbl:''},
+    {letter:'F', pts:0.0,lbl:'Failing'}
+  ];
+}
+let customScale = defaultScale();
 let csCourses = [];
 
 function scRender() {
@@ -279,15 +298,7 @@ function scLbl(i, v)    { customScale[i].lbl = v; scRender(); }
 function scRemove(i)    { customScale.splice(i, 1); scRender(); }
 
 function scReset() {
-  customScale = [
-    {letter:'A+',pts:4.3,lbl:'Outstanding'}, {letter:'A', pts:4.0,lbl:'Excellent'},
-    {letter:'A-',pts:3.7,lbl:''},            {letter:'B+',pts:3.3,lbl:''},
-    {letter:'B', pts:3.0,lbl:'Good'},        {letter:'B-',pts:2.7,lbl:''},
-    {letter:'C+',pts:2.3,lbl:''},            {letter:'C', pts:2.0,lbl:'Average'},
-    {letter:'C-',pts:1.7,lbl:''},            {letter:'D+',pts:1.3,lbl:''},
-    {letter:'D', pts:1.0,lbl:'Passing'},     {letter:'D-',pts:0.7,lbl:''},
-    {letter:'F', pts:0.0,lbl:'Failing'}
-  ];
+  customScale = defaultScale();
   scRender();
 }
 
@@ -307,17 +318,25 @@ function csAdd() {
   const g = parseFloat(document.getElementById('cs-grade').value);
   csCourses.push({ name: n, grade: g });
   document.getElementById('cs-name').value = '';
-  csRender(); wiRender();
+  csRender();
 }
 
 function csAddSample() {
   const g = customScale[Math.floor(Math.random() * customScale.length)].pts;
   csCourses.push({ name: randName(csCourses.map(c => c.name)), grade: g, sample: true });
-  csRender(); wiRender();
+  csRender();
 }
 
-function csRemove(i) { csCourses.splice(i, 1); csRender(); wiRender(); }
-function csClear()   { csCourses = []; csRender(); wiRender(); }
+function csRemove(i) {
+  csCourses.splice(i, 1);
+  if (wiMode === 'custom') wiOverrides = {};
+  csRender();
+}
+function csClear() {
+  csCourses = [];
+  if (wiMode === 'custom') wiOverrides = {};
+  csRender();
+}
 
 function csRender() {
   const el = document.getElementById('cs-num');
@@ -331,8 +350,10 @@ function csRender() {
   const gpa  = mean(csCourses.map(c => c.grade));
   const maxY = Math.max(...customScale.map(s => s.pts), 4.3) + 0.2;
   el.textContent = gpa.toFixed(2); el.style.color = gpaCol(gpa);
-  const closest = customScale.reduce((b, s) => Math.abs(s.pts - gpa) < Math.abs(b.pts - gpa) ? s : b, customScale[0]);
-  document.getElementById('cs-letter').textContent = closest.letter;
+  const closest = customScale.length
+    ? customScale.reduce((b, s) => Math.abs(s.pts - gpa) < Math.abs(b.pts - gpa) ? s : b)
+    : null;
+  document.getElementById('cs-letter').textContent = closest ? closest.letter : '';
   const tagged = csCourses.map((c, i) => ({ ...c, origIdx: i, removeFn: 'csRemove' }));
   renderChart('cs-chart', tagged, gpa, maxY);
   renderList('cs-list', tagged, gpa, 'csRemove');
