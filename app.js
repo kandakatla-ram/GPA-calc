@@ -33,8 +33,17 @@ function colorFor(grade, gpa) {
   return                   { bar: 'var(--orange)',text: 'var(--orange)',bg: 'var(--obg)' };
 }
 
+// Picks from `values`, favoring the top of the distribution: 80% of
+// picks land at/above `threshold` (B and up), 20% fall below it.
+function weightedPick(values, threshold, highProb) {
+  const high = values.filter(v => v >= threshold);
+  const low  = values.filter(v => v <  threshold);
+  const pool = high.length && (Math.random() < highProb || !low.length) ? high : low;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 function randGrade() {
-  return STEPS[Math.floor(Math.random() * STEPS.length)];
+  return weightedPick(STEPS, 3.0, 0.8);
 }
 
 function randName(used) {
@@ -322,7 +331,7 @@ function csAdd() {
 }
 
 function csAddSample() {
-  const g = customScale[Math.floor(Math.random() * customScale.length)].pts;
+  const g = weightedPick(customScale.map(s => s.pts), 3.0, 0.8);
   csCourses.push({ name: randName(csCourses.map(c => c.name)), grade: g, sample: true });
   csRender();
 }
