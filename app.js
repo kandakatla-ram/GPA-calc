@@ -111,11 +111,12 @@ function renderChart(id, courses, gpa, maxY = 4.5) {
       <div class="chart-scroll" id="${scrollId}">
         <div class="chart-inner" style="min-height:${H + LH}px;position:relative;width:${innerW}px;min-width:100%">
           ${grid}
-          <div class="mean-hline" style="top:${mY}px">
-            <span class="mean-hline-lbl">GPA ${gpa.toFixed(2)}</span>
-          </div>
+          <div class="mean-hline" style="top:${mY}px"></div>
           <div class="cols" style="height:${H}px;position:absolute;top:0;left:0;right:0">${cols}</div>
         </div>
+      </div>
+      <div class="gpa-axis" style="height:${H}px">
+        <div class="gpa-axis-lbl" style="top:${mY}px">GPA ${gpa.toFixed(2)}</div>
       </div>
     </div>
     ${showHint ? `<div class="scroll-hint" id="${scrollId}-hint">scroll for more →</div>` : ''}`;
