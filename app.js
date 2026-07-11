@@ -445,6 +445,118 @@ function wiRender() {
 function wiUpdate(i, si) { wiOverrides[i] = STEPS[parseInt(si)]; wiRender(); }
 
 /* ══════════════════════════════════════════
+   MY GRADES (live StudentVUE data)
+   Populated by login.html, which fetches from the
+   studentvue-api server and stores the result in
+   sessionStorage under 'svGrades' before redirecting
+   here with a #sv hash.
+══════════════════════════════════════════ */
+let svCourses = [];
+let svMeta = null;
+
+// Reverse lookup built from the shared GLABELS map, e.g. 'A-' -> 3.7
+const LETTER_TO_PTS = Object.fromEntries(
+  Object.entries(GLABELS).map(([pts, lbl]) => [lbl.toUpperCase().replace('−', '-'), parseFloat(pts)])
+);
+
+function svLetterToPoints(letter) {
+  if (!letter) return null;
+  const norm = String(letter).trim().toUpperCase().replace('−', '-').replace('–', '-');
+  return norm in LETTER_TO_PTS ? LETTER_TO_PTS[norm] : null;
+}
+
+// Fallback for districts/courses that only report a percent, using a
+// standard percent -> 4.3 quality-point scale.
+function svPercentToPoints(pct) {
+  if (pct === null || pct === undefined || isNaN(pct)) return null;
+  if (pct >= 97) return 4.3;
+  if (pct >= 93) return 4.0;
+  if (pct >= 90) return 3.7;
+  if (pct >= 87) return 3.3;
+  if (pct >= 83) return 3.0;
+  if (pct >= 80) return 2.7;
+  if (pct >= 77) return 2.3;
+  if (pct >= 73) return 2.0;
+  if (pct >= 70) return 1.7;
+  if (pct >= 67) return 1.3;
+  if (pct >= 65) return 1.0;
+  if (pct >= 60) return 0.7;
+  return 0.0;
+}
+
+function svLoadFromStorage() {
+  const raw = sessionStorage.getItem('svGrades');
+  if (!raw) {
+    svCourses = [];
+    svMeta = null;
+    return false;
+  }
+  try {
+    const data = JSON.parse(raw);
+    svMeta = { reportingPeriod: data.reportingPeriod || null };
+    svCourses = (data.courses || [])
+      .map(c => {
+        const letter = c.grade?.letter ?? null;
+        const percent = parseFloat(c.grade?.percent);
+        const pts = svLetterToPoints(letter) ?? svPercentToPoints(percent);
+        return {
+          name: c.title || 'Course',
+          grade: pts,
+          letter,
+          percent: isNaN(percent) ? null : percent,
+        };
+      })
+      .filter(c => c.grade !== null);
+    return svCourses.length > 0;
+  } catch {
+    svCourses = [];
+    svMeta = null;
+    return false;
+  }
+}
+
+function svLogout() {
+  sessionStorage.removeItem('svGrades');
+  svCourses = [];
+  svMeta = null;
+  svRender();
+}
+
+// Live grades aren't editable in place — point people at What If instead.
+function svRemoveNotice() {
+  alert('Live StudentVUE grades can\'t be edited here. Head to the "What If" tool to explore hypothetical changes.');
+}
+
+function svRender() {
+  const emptyEl   = document.getElementById('sv-empty');
+  const contentEl = document.getElementById('sv-content');
+  const periodEl  = document.getElementById('sv-period');
+  const badge     = document.getElementById('sv-nav-badge');
+
+  if (!svCourses.length) {
+    emptyEl.style.display = '';
+    contentEl.style.display = 'none';
+    if (badge) badge.style.display = 'none';
+    return;
+  }
+
+  emptyEl.style.display = 'none';
+  contentEl.style.display = '';
+  if (badge) badge.style.display = '';
+  periodEl.textContent = svMeta?.reportingPeriod ? ` · ${svMeta.reportingPeriod}` : '';
+
+  const gpa = mean(svCourses.map(c => c.grade));
+  const numEl = document.getElementById('sv-num');
+  numEl.textContent = gpa.toFixed(2);
+  numEl.style.color = gpaCol(gpa);
+  document.getElementById('sv-letter').textContent = letterGrade(gpa);
+
+  const tagged = svCourses.map((c, i) => ({ ...c, origIdx: i, removeFn: null }));
+  renderChart('sv-chart', tagged, gpa);
+  renderList('sv-list', tagged, gpa, 'svRemoveNotice');
+}
+
+/* ══════════════════════════════════════════
    NAVIGATION
 ══════════════════════════════════════════ */
 function switchPage(id) {
@@ -452,7 +564,7 @@ function switchPage(id) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
   document.getElementById('nav-' + id).classList.add('active');
-  ({ hs: hsRender, college: colRender, custom: scRender, whatif: wiRender })[id]?.();
+  ({ hs: hsRender, college: colRender, custom: scRender, whatif: wiRender, sv: svRender })[id]?.();
 }
 
 /* ══════════════════════════════════════════
@@ -476,3 +588,8 @@ if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
 scRender();
 hsRender();
 colRender();
+svLoadFromStorage();
+svRender();
+if (location.hash === '#sv' && svCourses.length) {
+  switchPage('sv');
+}

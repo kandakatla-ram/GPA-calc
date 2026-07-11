@@ -37,6 +37,15 @@
   </div>
 
   <div class="sb-nav">
+    <div class="sb-section-lbl">Live</div>
+
+    <button class="nav-item" onclick="switchPage('sv')" id="nav-sv">
+      <span class="nav-icon">📡</span>
+      <span class="nav-lbl">My Grades</span>
+      <span class="nav-badge" id="sv-nav-badge" style="display:none">Live</span>
+    </button>
+
+    <div class="sb-div"></div>
     <div class="sb-section-lbl">Modes</div>
 
     <button class="nav-item active" onclick="switchPage('hs')" id="nav-hs">
@@ -74,6 +83,51 @@
 
 <!-- ══ PAGES ══ -->
 <main class="main">
+
+  <!-- ── My Grades (live StudentVUE data) ── -->
+  <div class="page" id="page-sv">
+    <div class="container">
+      <div class="page-header">
+        <h1>My Grades</h1>
+        <p>Pulled live from StudentVUE<span class="sv-period" id="sv-period"></span></p>
+      </div>
+
+      <div class="card sv-empty-card" id="sv-empty">
+        <p>You haven't logged in yet — connect your StudentVUE account to see your real grades here.</p>
+        <a class="btn btn-primary" href="login.html" style="text-decoration:none">Log in to StudentVUE</a>
+      </div>
+
+      <div id="sv-content" style="display:none">
+        <div class="card">
+          <div class="gpa-card">
+            <span class="gpa-num" id="sv-num">—</span>
+            <span class="gpa-lbl">GPA (unweighted)</span>
+            <span class="gpa-letter" id="sv-letter"></span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="chart-title">Above the line = pulling GPA up · Below = pulling it down</div>
+          <div id="sv-chart"></div>
+        </div>
+
+        <div id="sv-list"></div>
+
+        <div class="card" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <a class="btn btn-ghost btn-sm" href="login.html" style="text-decoration:none">Refresh / switch student</a>
+          <button class="btn btn-ghost btn-sm" onclick="svLogout()">Log out</button>
+        </div>
+
+        <div class="legend">
+          <div class="leg"><div class="leg-dot" style="background:var(--green)"></div>≥ 4.0</div>
+          <div class="leg"><div class="leg-dot" style="background:var(--blue)"></div>Above GPA</div>
+          <div class="leg"><div class="leg-dot" style="background:var(--orange)"></div>Below GPA</div>
+          <div class="leg"><div class="leg-dot" style="background:var(--red)"></div>≤ 2.7</div>
+        </div>
+        <footer>GPA shown here is an unweighted estimate from your current letter/percent grades — for official GPA, check your report card.</footer>
+      </div>
+    </div>
+  </div>
 
   <!-- ── High School GPA ── -->
   <div class="page active" id="page-hs">

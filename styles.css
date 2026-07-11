@@ -194,13 +194,13 @@ html,body{
 .field{display:flex;flex-direction:column;gap:4px}
 .field label{font-size:11px;color:var(--txm);font-weight:500;text-transform:uppercase;letter-spacing:.04em}
 
-input[type=text],input[type=number],select{
+input[type=text],input[type=number],input[type=password],select{
   height:34px;padding:0 10px;font-size:13px;
   border:.5px solid var(--bmed);border-radius:var(--r);
   background:var(--s2);color:var(--tx);outline:none;font-family:inherit;
   transition:border-color .15s,box-shadow .15s;
 }
-input[type=text]:focus,input[type=number]:focus,select:focus{
+input[type=text]:focus,input[type=number]:focus,input[type=password]:focus,select:focus{
   border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,96,176,.12);
 }
 input[type=text]{width:160px}
@@ -392,3 +392,43 @@ input[type=range]{
 .sec-hd{font-size:11px;font-weight:700;color:var(--txf);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem}
 
 footer{margin-top:2.5rem;font-size:11px;color:var(--txf);border-top:.5px solid var(--border);padding-top:1rem}
+
+/* ══════════════════════════════════════════
+   LOGIN PAGE
+══════════════════════════════════════════ */
+.login-shell{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  padding:2rem 1rem;position:relative;z-index:1;
+}
+.login-card{
+  width:100%;max-width:380px;background:var(--surface);
+  border:.5px solid var(--bmed);border-radius:var(--rl);
+  padding:2rem 1.75rem;box-shadow:0 20px 40px -20px var(--glow);
+}
+.login-logo{display:flex;align-items:center;gap:10px;margin-bottom:1.5rem;justify-content:center}
+.login-logo span{font-size:16px;font-weight:700;letter-spacing:-.4px}
+.login-card h1{font-size:19px;font-weight:700;text-align:center;margin-bottom:4px}
+.login-card p.sub{font-size:12px;color:var(--txm);text-align:center;margin-bottom:1.5rem}
+.login-field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.login-field label{font-size:11px;color:var(--txm);font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+.login-field input{width:100%;height:38px}
+.login-submit{width:100%;height:40px;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:6px}
+.login-error{
+  background:var(--rbg);border:.5px solid var(--red);color:var(--red);
+  font-size:12px;border-radius:var(--r);padding:9px 12px;margin-bottom:14px;
+  display:none;
+}
+.login-error.show{display:block}
+.login-hint{font-size:11px;color:var(--txf);text-align:center;margin-top:16px;line-height:1.6}
+.login-hint a{color:var(--blue)}
+.spinner{
+  width:14px;height:14px;border-radius:50%;flex-shrink:0;
+  border:2px solid rgba(255,255,255,.35);border-top-color:#fff;
+  display:inline-block;animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── "My Grades" (live StudentVUE) page ── */
+.sv-period{font-weight:600;color:var(--tx)}
+.sv-empty-card{text-align:center;padding:2rem 1.5rem}
+.sv-empty-card p{font-size:13px;color:var(--txm);margin-bottom:14px}
