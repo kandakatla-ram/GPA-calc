@@ -41,10 +41,6 @@
 
     <form id="login-form" autocomplete="on">
       <div class="login-field">
-        <label for="f-domain">StudentVUE domain</label>
-        <input type="text" id="f-domain" placeholder="yourdistrict.edupoint.com" autocomplete="off" required/>
-      </div>
-      <div class="login-field">
         <label for="f-id">Student ID / username</label>
         <input type="text" id="f-id" autocomplete="username" required/>
       </div>
@@ -52,7 +48,20 @@
         <label for="f-pw">Password</label>
         <input type="password" id="f-pw" autocomplete="current-password" required/>
       </div>
+      <div class="login-field">
+        <label for="f-domain">StudentVUE domain</label>
+        <input type="text" id="f-domain" placeholder="yourdistrict.edupoint.com" autocomplete="off" required/>
+      </div>
       <button type="submit" class="btn btn-primary login-submit" id="login-btn">Log in &amp; load grades</button>
+
+      <label class="tos-check" for="f-tos">
+        <input type="checkbox" id="f-tos"/>
+        <span>
+          I understand this tool is <strong>not affiliated with or endorsed by StudentVUE® or Edupoint Educational Systems LLC</strong>.
+          It's built to help students understand their own grades better, and it does not store your credentials or grades.
+          I agree to the <a href="terms.html" target="_blank" rel="noopener">Terms &amp; Conditions</a>.
+        </span>
+      </label>
     </form>
 
     <div class="login-hint">
@@ -62,6 +71,10 @@
     </div>
   </div>
 </div>
+
+<footer class="global-footer">
+  <a href="terms.html">Terms &amp; Conditions</a>
+</footer>
 
 <script>
   // Point this at wherever your studentvue-api server (server.js) is
@@ -99,9 +112,15 @@
     const domain    = document.getElementById('f-domain').value.trim();
     const studentId = document.getElementById('f-id').value.trim();
     const password  = document.getElementById('f-pw').value;
+    const agreed    = document.getElementById('f-tos').checked;
 
     if (!domain || !studentId || !password) {
       showError('Please fill in all three fields.');
+      return;
+    }
+
+    if (!agreed) {
+      showError('Please agree to the Terms & Conditions to continue.');
       return;
     }
 

@@ -98,37 +98,59 @@ html,body{
 
 /* ── App layout ── */
 .app{display:flex;min-height:100vh;position:relative;z-index:1}
-.main{margin-left:var(--si);flex:1;padding:2rem 1.5rem 4rem;min-width:0}
+.main{margin-left:var(--sw);flex:1;padding:2rem 1.5rem 4rem;min-width:0}
 .container{max-width:720px;margin:0 auto}
 .page{display:none}
 .page.active{display:block}
 
-/* ── Sidebar ── */
+/* ── Sidebar ──
+   Always full width and always visible/clickable. The logo/title row
+   stays fully opaque at all times. Everything below it (nav links +
+   theme toggle, wrapped in .sb-fade) fades as a whole — background AND
+   text together — to low opacity by default, becoming fully opaque once
+   the cursor lands on it or gets close to the sidebar's edge. Proximity
+   is handled in app.js via a mousemove listener that toggles
+   .sidebar-near — :hover is kept too as a plain-CSS fallback.
+   Note: .sidebar itself deliberately has NO background of its own —
+   otherwise it would sit solid behind .sb-fade and the background would
+   never visually fade, only the text on top of it. */
 .sidebar{
-  position:fixed;left:0;top:0;bottom:0;width:var(--si);
-  background:var(--surface);border-right:.5px solid var(--bmed);
+  position:fixed;left:0;top:0;bottom:0;width:var(--sw);
   display:flex;flex-direction:column;z-index:100;
-  overflow:hidden;transition:width .22s cubic-bezier(.4,0,.2,1);
+  overflow:hidden;
 }
-.sidebar:hover{width:var(--sw);box-shadow:4px 0 24px rgba(60,35,10,.12)}
 
 .sb-logo{
-  height:52px;display:flex;align-items:center;padding:0 13px;gap:10px;
-  border-bottom:.5px solid var(--border);flex-shrink:0;overflow:hidden;
+  height:60px;display:flex;align-items:center;padding:0 16px;gap:10px;
+  background:var(--surface);
+  border-bottom:.5px solid var(--border);
+  border-right:.5px solid var(--bmed);
+  flex-shrink:0;overflow:hidden;position:relative;z-index:2;
 }
 .sb-logo svg{flex-shrink:0}
 .sb-logo-txt{
-  font-size:14px;font-weight:700;white-space:nowrap;letter-spacing:-.4px;
-  opacity:0;transition:opacity .15s .04s;
+  font-size:18px;font-weight:800;white-space:nowrap;letter-spacing:-.6px;
+  color:var(--tx);
 }
-.sidebar:hover .sb-logo-txt{opacity:1}
+
+.sb-fade{
+  flex:1;display:flex;flex-direction:column;overflow:hidden;
+  background:var(--surface);
+  border-right:.5px solid var(--bmed);
+  opacity:.4;
+  transition:opacity .3s cubic-bezier(.4,0,.2,1), box-shadow .3s ease;
+}
+.sb-fade:hover,
+.sidebar.sidebar-near .sb-fade{
+  opacity:1;
+  box-shadow:4px 0 24px rgba(60,35,10,.12);
+}
 
 .sb-nav{flex:1;padding:8px 0;display:flex;flex-direction:column;gap:1px;overflow:hidden}
 .sb-section-lbl{
   padding:8px 13px 3px;font-size:10px;font-weight:700;color:var(--txf);
-  text-transform:uppercase;letter-spacing:.06em;opacity:0;transition:opacity .15s .04s;
+  text-transform:uppercase;letter-spacing:.06em;
 }
-.sidebar:hover .sb-section-lbl{opacity:1}
 
 .nav-item{
   display:flex;align-items:center;gap:10px;padding:9px 13px;
@@ -147,8 +169,6 @@ html,body{
   width:20px;height:20px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;font-size:15px;
 }
-.nav-lbl,.nav-badge{opacity:0;transition:opacity .15s .04s}
-.sidebar:hover .nav-lbl,.sidebar:hover .nav-badge{opacity:1}
 .nav-badge{
   margin-left:auto;font-size:10px;background:var(--bbg);color:var(--blue);
   padding:1px 6px;border-radius:20px;font-weight:600;white-space:nowrap;
@@ -166,15 +186,20 @@ html,body{
 .toggle-track{
   margin-left:auto;width:30px;height:17px;background:var(--s3);
   border-radius:9px;position:relative;flex-shrink:0;
-  opacity:0;transition:opacity .15s .04s,background .2s;
+  transition:background .2s;
 }
-.sidebar:hover .toggle-track{opacity:1}
 .toggle-thumb{
   position:absolute;top:2px;left:2px;width:13px;height:13px;
   background:var(--txf);border-radius:50%;transition:transform .2s,background .2s;
 }
 [data-theme="dark"] .toggle-track{background:var(--blue)}
 [data-theme="dark"] .toggle-thumb{transform:translateX(13px);background:#fff}
+
+/* Slightly narrower sidebar on small screens, since it's now always
+   full width instead of collapsing to an icon rail. */
+@media (max-width:700px){
+  :root{--sw:180px}
+}
 
 /* ── Page header ── */
 .page-header{margin-bottom:1.75rem}
@@ -357,7 +382,16 @@ select{width:106px;cursor:pointer}
 .slider-top{display:flex;align-items:center;gap:8px;margin-bottom:7px}
 .slider-name{flex:1;font-size:13px}
 .slider-real{font-size:11px;color:var(--txf)}
-.slider-hyp{font-size:13px;font-weight:700;width:32px;text-align:right}
+.slider-hyp{font-size:13px;font-weight:700;width:32px;text-align:center}
+.slider-stepper{display:flex;align-items:center;gap:4px}
+.stepper-btn{
+  width:20px;height:20px;display:flex;align-items:center;justify-content:center;
+  font-size:9px;line-height:1;border-radius:5px;cursor:pointer;
+  border:.5px solid var(--bmed);background:var(--s2);color:var(--txm);
+  transition:background .1s,color .1s;font-family:inherit;flex-shrink:0;
+}
+.stepper-btn:hover:not(:disabled){background:var(--s3);color:var(--tx)}
+.stepper-btn:disabled{opacity:.35;cursor:default}
 input[type=range]{
   width:100%;height:4px;cursor:pointer;accent-color:var(--blue);
   background:var(--s2);border-radius:2px;border:none;outline:none;padding:0;display:block;
@@ -432,3 +466,35 @@ footer{margin-top:2.5rem;font-size:11px;color:var(--txf);border-top:.5px solid v
 .sv-period{font-weight:600;color:var(--tx)}
 .sv-empty-card{text-align:center;padding:2rem 1.5rem}
 .sv-empty-card p{font-size:13px;color:var(--txm);margin-bottom:14px}
+
+/* ── Terms & Conditions checkbox on login ── */
+.tos-check{
+  display:flex;align-items:flex-start;gap:8px;
+  margin-top:14px;font-size:11px;color:var(--txm);line-height:1.55;cursor:pointer;
+}
+.tos-check input{margin-top:2px;flex-shrink:0;accent-color:var(--blue);width:14px;height:14px;cursor:pointer}
+.tos-check a{color:var(--blue)}
+
+/* ── Global "Terms & Conditions" footer link (present on every page) ── */
+.global-footer{
+  position:fixed;left:0;right:0;bottom:0;z-index:200;
+  display:flex;justify-content:center;align-items:center;
+  padding:9px 12px 11px;font-size:11px;
+  background:linear-gradient(to top, var(--bg) 55%, transparent);
+  pointer-events:none;
+}
+.global-footer a{
+  pointer-events:auto;color:var(--txf);text-decoration:underline;
+  text-underline-offset:2px;
+}
+.global-footer a:hover{color:var(--blue)}
+/* On the terms page itself the footer doesn't need the fade backdrop */
+.global-footer.static{position:static;background:none;margin-top:2.5rem;padding:1rem}
+
+/* ── Terms & Conditions page ── */
+.terms-shell{min-height:100vh;position:relative;z-index:1;padding:2.5rem 1.5rem 5rem}
+.terms-container{max-width:640px}
+.terms-card h2{font-size:14px;font-weight:700;margin:1.1rem 0 .4rem}
+.terms-card h2:first-child{margin-top:0}
+.terms-card p{font-size:13px;color:var(--txm);line-height:1.65;margin-bottom:.4rem}
+.terms-card{margin-bottom:1.5rem}

@@ -36,6 +36,7 @@
     <span class="sb-logo-txt">GPA Visualizer</span>
   </div>
 
+  <div class="sb-fade">
   <div class="sb-nav">
     <div class="sb-section-lbl">Live</div>
 
@@ -78,6 +79,7 @@
       <span class="nav-lbl" id="theme-lbl">Dark mode</span>
       <div class="toggle-track"><div class="toggle-thumb"></div></div>
     </button>
+  </div>
   </div>
 </nav>
 
@@ -164,6 +166,7 @@
           <span class="gpa-num" id="hs-num">—</span>
           <span class="gpa-lbl">cumulative GPA</span>
           <span class="gpa-letter" id="hs-letter"></span>
+          <button class="btn-sample" onclick="goToWhatIf('hs')" title="See how a hypothetical grade change would affect this GPA">🔮 What if…</button>
         </div>
       </div>
 
@@ -268,6 +271,9 @@
       <button class="btn btn-sm btn-ghost" onclick="scReset()" style="margin-bottom:1.5rem">Reset to default</button>
 
       <div class="sec-hd">Courses</div>
+      <div class="hyp-banner">
+        📌 <span>These courses also show up in <strong>What If → Custom</strong>, so you can explore hypothetical grade changes on your custom scale.</span>
+      </div>
       <div class="card">
         <div class="add-form">
           <div class="field">
@@ -321,6 +327,25 @@
       </div>
 
       <div class="card">
+        <div class="add-form">
+          <div class="field">
+            <label>Course</label>
+            <input type="text" id="wi-add-name" placeholder="e.g. Elective" onkeydown="if(event.key==='Enter')wiAddCourse()"/>
+          </div>
+          <div class="field">
+            <label>Grade</label>
+            <select id="wi-add-grade"></select>
+          </div>
+          <div class="field" id="wi-credits-field" style="display:none">
+            <label>Credits</label>
+            <input type="number" id="wi-add-credits" value="3" min=".5" max="6" step=".5"/>
+          </div>
+          <button class="btn btn-primary" onclick="wiAddCourse()">Add course</button>
+          <button class="btn-sample" onclick="wiAddSample()" title="Add a sample course with a random grade">+ Sample</button>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="gpa-card">
           <div>
             <div style="display:flex;align-items:baseline;gap:10px">
@@ -337,7 +362,7 @@
       </div>
 
       <div class="card">
-        <div class="chart-title">Hypothetical positions — drag sliders below</div>
+        <div class="chart-title">Hypothetical positions — drag the sliders or use ▲▼ below</div>
         <div id="wi-chart"></div>
       </div>
 
@@ -355,6 +380,10 @@
 
 </main>
 </div>
+
+<footer class="global-footer">
+  <a href="terms.html">Terms &amp; Conditions</a>
+</footer>
 
 <script src="app.js"></script>
 </body>

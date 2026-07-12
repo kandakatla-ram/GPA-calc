@@ -300,6 +300,10 @@ function scRender() {
   sel.innerHTML = customScale.map(s => `<option value="${s.pts}">${s.letter}${s.lbl ? ' — ' + s.lbl : ''}</option>`).join('');
   if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
   csRender();
+
+  // The What If page's own "Add course" grade dropdown mirrors the
+  // custom scale too, whenever that mode is currently selected there.
+  if (wiMode === 'custom') wiPopulateAddGradeSelect();
 }
 
 function scUpdate(i, v) { customScale[i].pts = parseFloat(v) || 0; scRender(); }
@@ -378,6 +382,8 @@ function wiSetMode(m) {
   ['hs','college','custom'].forEach(x => {
     document.getElementById('wi-btn-' + x).classList.toggle('active', x === m);
   });
+  document.getElementById('wi-credits-field').style.display = m === 'college' ? '' : 'none';
+  wiPopulateAddGradeSelect();
   wiRender();
 }
 
@@ -388,6 +394,104 @@ function wiGetBase() {
 function wiCalcGPA(courses) {
   if (wiMode === 'college' && courses.every(c => c.credits)) return wGPA(courses);
   return mean(courses.map(c => c.grade));
+}
+
+// The grade scale to step/slide through for the current mode: the
+// standard 4.3 STEPS scale for High School/College, or whatever the user
+// has defined on the Custom Scale page when mode is 'custom'.
+function wiScale() {
+  if (wiMode === 'custom' && customScale.length) {
+    return [...customScale].map(s => s.pts).sort((a, b) => b - a);
+  }
+  return STEPS;
+}
+
+// Label for a given point value under the current mode's scale.
+function wiLabelFor(points) {
+  if (wiMode === 'custom' && customScale.length) {
+    const nearest = customScale.reduce((best, s) =>
+      best === null || Math.abs(s.pts - points) < Math.abs(best.pts - points) ? s : best, null);
+    return nearest ? nearest.letter : points.toFixed(2);
+  }
+  return gl(points);
+}
+
+function wiScaleIndexFor(points) {
+  const scale = wiScale();
+  const exact = scale.indexOf(points);
+  if (exact >= 0) return exact;
+  // Snap to the closest step (can happen right after switching modes/scales).
+  return scale.reduce((bi, v, vi) => Math.abs(v - points) < Math.abs(scale[bi] - points) ? vi : bi, 0);
+}
+
+/* ── Add a course / sample directly from the What If page ──
+   These push into the same underlying arrays the other pages use
+   (hsCourses/colCourses/csCourses) so everything stays in sync. */
+function wiPopulateAddGradeSelect() {
+  const sel = document.getElementById('wi-add-grade');
+  if (!sel) return;
+  if (wiMode === 'custom') {
+    sel.innerHTML = customScale
+      .map(s => `<option value="${s.pts}">${s.letter}${s.lbl ? ' — ' + s.lbl : ''}</option>`)
+      .join('');
+  } else {
+    sel.innerHTML = STEPS
+      .map(v => `<option value="${v}"${v === 4.0 ? ' selected' : ''}>${gl(v)}</option>`)
+      .join('');
+  }
+}
+
+function wiAddCourse() {
+  const nameEl  = document.getElementById('wi-add-name');
+  const gradeEl = document.getElementById('wi-add-grade');
+  const n = nameEl.value.trim() || 'Course';
+  const g = parseFloat(gradeEl.value);
+  if (isNaN(g)) return;
+
+  if (wiMode === 'college') {
+    const cr = parseFloat(document.getElementById('wi-add-credits').value) || 3;
+    colCourses.push({ name: n, grade: g, credits: cr });
+    colRender();
+  } else if (wiMode === 'custom') {
+    csCourses.push({ name: n, grade: g });
+    csRender();
+  } else {
+    hsCourses.push({ name: n, grade: g });
+    hsRender();
+  }
+  nameEl.value = '';
+  wiRender();
+}
+
+function wiAddSample() {
+  const used = wiGetBase().map(c => c.name);
+  if (wiMode === 'college') {
+    const crs = [1, 2, 3, 3, 4, 4][Math.floor(Math.random() * 6)];
+    colCourses.push({ name: randName(used), grade: randGrade(), credits: crs, sample: true });
+    colRender();
+  } else if (wiMode === 'custom') {
+    const g = customScale.length ? weightedPick(customScale.map(s => s.pts), 3.0, 0.8) : randGrade();
+    csCourses.push({ name: randName(used), grade: g, sample: true });
+    csRender();
+  } else {
+    hsCourses.push({ name: randName(used), grade: randGrade(), sample: true });
+    hsRender();
+  }
+  wiRender();
+}
+
+/* ── Up/down stepper: nudges a course's hypothetical grade one step
+   along the current mode's scale (STEPS, or the custom scale). ── */
+function wiAdjust(i, dir) {
+  const base = wiGetBase();
+  const c = base[i];
+  if (!c) return;
+  const scale = wiScale();
+  const current = wiOverrides[i] ?? c.grade;
+  let si = wiScaleIndexFor(current);
+  si = Math.min(scale.length - 1, Math.max(0, si + dir));
+  wiOverrides[i] = scale[si];
+  wiRender();
 }
 
 function wiRender() {
@@ -401,7 +505,7 @@ function wiRender() {
     document.getElementById('wi-delta').textContent  = '';
     renderChart('wi-chart', [], 0);
     document.getElementById('wi-sliders').innerHTML =
-      '<div style="color:var(--txf);font-size:13px;padding:.5rem 0">Add courses in the selected mode first, then come back here.</div>';
+      '<div style="color:var(--txf);font-size:13px;padding:.5rem 0">Add a course above (or in the selected mode) to get started.</div>';
     return;
   }
 
@@ -410,7 +514,7 @@ function wiRender() {
   const hypGpa  = wiCalcGPA(hyp.map(c => ({ ...c, grade: c.hypGrade })));
 
   numEl.textContent = hypGpa.toFixed(2); numEl.style.color = gpaCol(hypGpa);
-  document.getElementById('wi-letter').textContent = letterGrade(hypGpa);
+  document.getElementById('wi-letter').textContent = wiMode === 'custom' ? wiLabelFor(hypGpa) : letterGrade(hypGpa);
   document.getElementById('wi-real').textContent   = realGpa.toFixed(2);
 
   const delta = hypGpa - realGpa;
@@ -421,28 +525,37 @@ function wiRender() {
   const tagged = hyp.map((c, i) => ({ ...c, grade: c.hypGrade, origIdx: i }));
   renderChart('wi-chart', tagged, hypGpa);
 
+  const scale = wiScale();
   let html = '';
   base.forEach((c, i) => {
     const hypG    = wiOverrides[i] ?? c.grade;
     const col     = colorFor(hypG, hypGpa);
     const diff    = hypG - c.grade;
     const diffStr = diff === 0 ? 'Same as real' : diff > 0 ? `▲ +${diff.toFixed(2)} vs real` : `▼ ${diff.toFixed(2)} vs real`;
-    const si = STEPS.indexOf(hypG), ri = STEPS.indexOf(c.grade);
+    const si      = wiScaleIndexFor(hypG);
+    const atTop   = si <= 0;
+    const atBottom = si >= scale.length - 1;
+
     html += `<div class="slider-row">
       <div class="slider-top">
         <div class="slider-name">${c.name}${c.sample ? '<span class="c-sample">sample</span>' : ''}</div>
-        <div class="slider-real">Real: ${gl(c.grade)}</div>
-        <div class="slider-hyp" style="color:${col.text}">${gl(hypG)}</div>
+        <div class="slider-real">Real: ${wiLabelFor(c.grade)}</div>
+        <div class="slider-stepper">
+          <button class="stepper-btn" onclick="wiAdjust(${i},-1)" ${atTop ? 'disabled' : ''} title="Raise grade" aria-label="Raise grade">▲</button>
+          <div class="slider-hyp" style="color:${col.text}">${wiLabelFor(hypG)}</div>
+          <button class="stepper-btn" onclick="wiAdjust(${i},1)" ${atBottom ? 'disabled' : ''} title="Lower grade" aria-label="Lower grade">▼</button>
+        </div>
       </div>
-      <input type="range" min="0" max="${STEPS.length - 1}" step="1"
-        value="${si >= 0 ? si : ri}" oninput="wiUpdate(${i}, this.value)"/>
+      <input type="range" min="0" max="${scale.length - 1}" step="1"
+        value="${si}" oninput="wiUpdate(${i}, this.value)"/>
       <div class="slider-delta" style="color:${diff > 0 ? 'var(--green)' : diff < 0 ? 'var(--red)' : 'var(--txf)'}">${diffStr}</div>
     </div>`;
   });
   document.getElementById('wi-sliders').innerHTML = html || '<div style="color:var(--txf);font-size:13px">No courses loaded.</div>';
 }
 
-function wiUpdate(i, si) { wiOverrides[i] = STEPS[parseInt(si)]; wiRender(); }
+function wiUpdate(i, si) { wiOverrides[i] = wiScale()[parseInt(si)]; wiRender(); }
+
 
 /* ══════════════════════════════════════════
    MY GRADES (live StudentVUE data)
@@ -556,6 +669,13 @@ function svRender() {
   renderList('sv-list', tagged, gpa, 'svRemoveNotice');
 }
 
+// Jumps to the What If page with its mode bar pre-set (e.g. from a
+// "🔮 What if…" button on one of the GPA pages).
+function goToWhatIf(mode) {
+  wiSetMode(mode);
+  switchPage('whatif');
+}
+
 /* ══════════════════════════════════════════
    NAVIGATION
 ══════════════════════════════════════════ */
@@ -566,6 +686,30 @@ function switchPage(id) {
   document.getElementById('nav-' + id).classList.add('active');
   ({ hs: hsRender, college: colRender, custom: scRender, whatif: wiRender, sv: svRender })[id]?.();
 }
+
+/* ══════════════════════════════════════════
+   SIDEBAR PROXIMITY
+   The sidebar is always visible but sits at low opacity by default.
+   Rather than only reacting to :hover once the cursor is directly over
+   it, this tracks mouse position and fades it to full opacity a bit
+   before the cursor actually reaches it, then back down once the cursor
+   moves away.
+══════════════════════════════════════════ */
+(function initSidebarProximity() {
+  const sidebar = document.querySelector('.sidebar');
+  if (!sidebar) return;
+
+  const PROXIMITY_PX = 90; // buffer beyond the sidebar's own right edge
+
+  const updateProximity = (clientX) => {
+    const rect = sidebar.getBoundingClientRect();
+    const near = clientX <= rect.right + PROXIMITY_PX;
+    sidebar.classList.toggle('sidebar-near', near);
+  };
+
+  document.addEventListener('mousemove', (e) => updateProximity(e.clientX), { passive: true });
+  document.addEventListener('mouseleave', () => sidebar.classList.remove('sidebar-near'));
+})();
 
 /* ══════════════════════════════════════════
    THEME
@@ -588,6 +732,7 @@ if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
 scRender();
 hsRender();
 colRender();
+wiPopulateAddGradeSelect();
 svLoadFromStorage();
 svRender();
 if (location.hash === '#sv' && svCourses.length) {
