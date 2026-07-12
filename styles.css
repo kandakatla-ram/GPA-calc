@@ -393,8 +393,28 @@ select{width:106px;cursor:pointer}
 .stepper-btn:hover:not(:disabled){background:var(--s3);color:var(--tx)}
 .stepper-btn:disabled{opacity:.35;cursor:default}
 input[type=range]{
-  width:100%;height:4px;cursor:pointer;accent-color:var(--blue);
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:4px;cursor:pointer;
   background:var(--s2);border-radius:2px;border:none;outline:none;padding:0;display:block;
+}
+input[type=range]::-webkit-slider-runnable-track{
+  height:4px;border-radius:2px;background:transparent;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:14px;height:14px;border-radius:50%;
+  background:var(--blue);cursor:pointer;margin-top:-5px;
+  box-shadow:0 1px 3px rgba(0,0,0,.25);
+}
+input[type=range]::-moz-range-track{
+  height:4px;border-radius:2px;background:transparent;
+}
+input[type=range]::-moz-range-thumb{
+  width:14px;height:14px;border-radius:50%;background:var(--blue);
+  border:none;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.25);
+}
+input[type=range]::-moz-range-progress{
+  background:transparent;height:4px;
 }
 .slider-delta{font-size:11px;font-weight:600;margin-top:3px;text-align:right}
 

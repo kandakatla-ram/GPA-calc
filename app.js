@@ -535,6 +535,10 @@ function wiRender() {
     const si      = wiScaleIndexFor(hypG);
     const atTop   = si <= 0;
     const atBottom = si >= scale.length - 1;
+    // Fill the track from the thumb to the right edge (reversed from the
+    // browser's native left-fill), by painting the two halves ourselves.
+    const pct = (si / Math.max(scale.length - 1, 1)) * 100;
+    const trackFill = `linear-gradient(to right, var(--s2) 0%, var(--s2) ${pct}%, var(--blue) ${pct}%, var(--blue) 100%)`;
 
     html += `<div class="slider-row">
       <div class="slider-top">
@@ -547,7 +551,7 @@ function wiRender() {
         </div>
       </div>
       <input type="range" min="0" max="${scale.length - 1}" step="1"
-        value="${si}" oninput="wiUpdate(${i}, this.value)"/>
+        value="${si}" style="background:${trackFill}" oninput="wiUpdate(${i}, this.value)"/>
       <div class="slider-delta" style="color:${diff > 0 ? 'var(--green)' : diff < 0 ? 'var(--red)' : 'var(--txf)'}">${diffStr}</div>
     </div>`;
   });
@@ -620,6 +624,15 @@ function svLoadFromStorage() {
         };
       })
       .filter(c => c.grade !== null);
+
+    // Seed the High School course list with these grades too. What If
+    // reads from hsCourses by default, so this is what actually makes
+    // live StudentVUE grades viewable and modifiable there — not just on
+    // this read-only "My Grades" summary.
+    if (svCourses.length) {
+      hsCourses = svCourses.map(c => ({ name: c.name, grade: c.grade }));
+    }
+
     return svCourses.length > 0;
   } catch {
     svCourses = [];
@@ -729,11 +742,11 @@ if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
 }
 
 /* ══ INIT ══ */
+svLoadFromStorage(); // may seed hsCourses with live StudentVUE grades below
 scRender();
 hsRender();
 colRender();
 wiPopulateAddGradeSelect();
-svLoadFromStorage();
 svRender();
 if (location.hash === '#sv' && svCourses.length) {
   switchPage('sv');
