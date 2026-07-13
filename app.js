@@ -16,6 +16,11 @@ const SAMPLE_NAMES = [
 ];
 
 /* ── Shared helpers ── */
+const ESCAPE_HTML_MAP = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+// Course names can come from raw user input or from an external StudentVUE
+// portal's course titles, and are inserted via innerHTML for the chart/list
+// markup below — escape them so a crafted name can't inject markup/scripts.
+const escapeHtml = s => String(s).replace(/[&<>"']/g, ch => ESCAPE_HTML_MAP[ch]);
 const gl      = v => GLABELS[v] ?? v.toFixed(2);
 const mean    = a => a.reduce((s, x) => s + x, 0) / a.length;
 const wGPA    = cs => cs.reduce((s, c) => s + c.grade * c.credits, 0) / cs.reduce((s, c) => s + c.credits, 0);
@@ -103,7 +108,7 @@ function renderChart(id, courses, gpa, maxY = 4.5) {
       <div class="col-label">
         <div class="col-grade" style="color:${col.text}">${gl(grade)}</div>
         ${crLabel}
-        <div class="col-name" title="${c.name}">${c.name}</div>
+        <div class="col-name" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</div>
         ${sampleTag}${rmBtn}
       </div>
     </div>`;
@@ -159,7 +164,7 @@ function renderList(id, courses, gpa, removeFn) {
     const creditsBadge = c.credits ? `<span class="credits-badge">${c.credits}cr</span>` : '';
     html += `<div class="course-row">
       <div class="c-dot" style="background:${col.bar}"></div>
-      <div class="c-name">${c.name}${sampleBadge}${creditsBadge}</div>
+      <div class="c-name">${escapeHtml(c.name)}${sampleBadge}${creditsBadge}</div>
       <div class="c-grade" style="color:${col.text}">${gl(grade)}</div>
       <div class="c-pts" style="color:var(--txf)">${grade.toFixed(1)}</div>
       <div class="c-pull" style="color:${col.text}">${sign}${c.pull.toFixed(2)}</div>
@@ -329,13 +334,17 @@ function scAdd() {
 function csAdd() {
   const n = document.getElementById('cs-name').value.trim() || 'Course';
   const g = parseFloat(document.getElementById('cs-grade').value);
+  // Scale can be emptied out entirely on this page (all rows removed),
+  // which leaves the grade <select> with no options and this NaN.
+  if (isNaN(g)) return;
   csCourses.push({ name: n, grade: g });
   document.getElementById('cs-name').value = '';
   csRender();
 }
 
 function csAddSample() {
-  const g = weightedPick(customScale.map(s => s.pts), 3.0, 0.8);
+  // weightedPick would return undefined if customScale is empty.
+  const g = customScale.length ? weightedPick(customScale.map(s => s.pts), 3.0, 0.8) : randGrade();
   csCourses.push({ name: randName(csCourses.map(c => c.name)), grade: g, sample: true });
   csRender();
 }
@@ -542,7 +551,7 @@ function wiRender() {
 
     html += `<div class="slider-row">
       <div class="slider-top">
-        <div class="slider-name">${c.name}${c.sample ? '<span class="c-sample">sample</span>' : ''}</div>
+        <div class="slider-name">${escapeHtml(c.name)}${c.sample ? '<span class="c-sample">sample</span>' : ''}</div>
         <div class="slider-real">Real: ${wiLabelFor(c.grade)}</div>
         <div class="slider-stepper">
           <button class="stepper-btn" onclick="wiAdjust(${i},-1)" ${atTop ? 'disabled' : ''} title="Raise grade" aria-label="Raise grade">▲</button>
@@ -601,6 +610,16 @@ function svPercentToPoints(pct) {
   return 0.0;
 }
 
+// Turns a marking period name like "Semester 1 Final" into a compact "S1"
+// for the connected-course display; falls back to a trimmed version of
+// whatever name the district uses if it doesn't look like "Semester N".
+function svShortenPeriod(period) {
+  if (!period) return '—';
+  const m = period.match(/sem(?:ester)?\s*(\d)/i);
+  if (m) return 'S' + m[1];
+  return period.length > 10 ? period.slice(0, 10) + '…' : period;
+}
+
 function svLoadFromStorage() {
   const raw = sessionStorage.getItem('svGrades');
   if (!raw) {
@@ -616,11 +635,27 @@ function svLoadFromStorage() {
         const letter = c.grade?.letter ?? null;
         const percent = parseFloat(c.grade?.percent);
         const pts = svLetterToPoints(letter) ?? svPercentToPoints(percent);
+
+        // Courses connected across multiple marking periods (e.g. a
+        // year-long class with both a Semester 1 and Semester 2 grade)
+        // get a compact per-term breakdown appended to their name, so
+        // it's visible that the two terms were combined into one course
+        // rather than listed as unrelated duplicates.
+        let name = c.title || 'Course';
+        if (Array.isArray(c.terms) && c.terms.length > 1) {
+          const parts = c.terms.map(t => {
+            const g = t.letter || (t.percent != null && !isNaN(parseFloat(t.percent)) ? `${Math.round(parseFloat(t.percent))}%` : '—');
+            return `${svShortenPeriod(t.period)}: ${g}`;
+          });
+          name = `${name} (${parts.join(' · ')})`;
+        }
+
         return {
-          name: c.title || 'Course',
+          name,
           grade: pts,
           letter,
           percent: isNaN(percent) ? null : percent,
+          connected: !!c.connected,
         };
       })
       .filter(c => c.grade !== null);

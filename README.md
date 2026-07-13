@@ -42,20 +42,73 @@ curl -X POST http://localhost:3000/api/grades \
 before `/PXP2_Login_Student.aspx`). `https://` and trailing slashes are
 stripped automatically if included.
 
+### Which marking period does this return?
+
+StudentVUE's default Gradebook call returns whatever period the district
+currently has marked "active" — which is often a Semester 1
+progress/midterm checkpoint, not a final grade. To give a fuller picture,
+`/api/grades` automatically:
+
+1. Fetches the list of all marking periods available for the student.
+2. Best-effort matches the periods that look like **Semester 1 Final** and
+   **Semester 2 Final** (by name — e.g. containing "Semester 1", "Sem 1",
+   "S1", preferring ones explicitly labeled "Final" over "Progress" /
+   "Midterm" / "Interim").
+3. Fetches grades for each matched period and **merges same-titled courses
+   across them** into a single connected entry — e.g. a year-long class
+   that has both a Semester 1 and Semester 2 grade shows up once, with a
+   `terms` array covering both, instead of two disconnected rows.
+4. If no Semester 1/2 periods can be confidently identified for a
+   district's naming scheme, it falls back to the single "current" period
+   as before (each course gets a one-item `terms` array).
+
+This detection is a heuristic and won't be perfect for every district. If it
+picks the wrong periods, you can override it explicitly:
+
+```bash
+curl -X POST http://localhost:3000/api/grades \
+  -H "Content-Type: application/json" \
+  -d '{
+        "studentId": "...", "password": "...", "domain": "...",
+        "reportPeriods": [2, 4]
+      }'
+```
+
+`reportPeriods` takes the marking-period `index` values StudentVUE uses
+internally. To find the right indices for your district, call
+`POST /api/periods` (same body, minus `reportPeriods`) — it returns each
+period's `name` and `index` without pulling full grade data:
+
+```bash
+curl -X POST http://localhost:3000/api/periods \
+  -H "Content-Type: application/json" \
+  -d '{"studentId":"...", "password":"...", "domain":"..."}'
+```
+
 ### Example response shape
 
 ```json
 {
-  "reportingPeriod": "Semester 1",
-  "availableReportingPeriods": [{ "name": "Semester 1", "index": "1" }],
+  "reportingPeriod": "Semester 1 Final + Semester 2 Final",
+  "periodsUsed": ["Semester 1 Final", "Semester 2 Final"],
+  "availableReportingPeriods": [
+    { "name": "Semester 1 Progress", "index": "1" },
+    { "name": "Semester 1 Final", "index": "2" },
+    { "name": "Semester 2 Progress", "index": "3" },
+    { "name": "Semester 2 Final", "index": "4" }
+  ],
   "courses": [
     {
       "title": "AP Biology",
-      "period": "3",
       "room": "204",
       "teacher": "Smith, Jane",
       "teacherEmail": "jsmith@school.edu",
-      "grade": { "letter": "A-", "percent": "91.2" },
+      "connected": true,
+      "terms": [
+        { "period": "Semester 1 Final", "letter": "A-", "percent": "91.2" },
+        { "period": "Semester 2 Final", "letter": "A", "percent": "94.0" }
+      ],
+      "grade": { "letter": null, "percent": 92.6 },
       "categories": [
         { "type": "Tests", "weight": "50%", "calculatedMark": "A" }
       ],
@@ -73,6 +126,11 @@ stripped automatically if included.
   ]
 }
 ```
+
+A course that only has a grade in one of the matched periods (e.g. a
+semester-only elective) still comes back as a single entry with
+`"connected": false` and a one-item `terms` array — its `grade.letter` and
+`grade.percent` are passed through unchanged rather than averaged.
 
 Exact field availability can vary slightly by district configuration.
 

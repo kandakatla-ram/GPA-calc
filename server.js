@@ -160,7 +160,7 @@ function transformGradebook(parsed) {
   const currentPeriod = gradebook.ReportingPeriod?.GradePeriod ?? null;
   const availablePeriods = toArray(
     gradebook.ReportingPeriods?.ReportPeriod
-  ).map((p) => ({ name: p.Name, index: p.Index }));
+  ).map((p) => ({ name: p.GradePeriod, index: p.Index }));
 
   const courses = toArray(gradebook.Courses?.Course).map((course) => {
     const mark = course.Marks?.Mark;
@@ -207,9 +207,252 @@ function transformGradebook(parsed) {
 }
 
 // -----------------------------------------------------------------------------
+// Picking "Semester 1 Final" / "Semester 2 Final" out of a district's list of
+// marking periods.
+//
+// StudentVUE's default Gradebook call returns whatever period the district
+// currently has marked "active" — which is very often a Semester 1
+// progress/midterm checkpoint, not either semester's final grade. To build a
+// full-year picture we look through the full list of periods (which
+// StudentVUE always returns, regardless of which one was requested) and
+// try to find the two that represent each semester's *final* grade.
+//
+// This is inherently a best-effort heuristic since districts name their
+// periods however they like. Callers who know their district's exact period
+// indices can skip this entirely by passing `reportPeriods: [idx1, idx2]`
+// in the request body (see /api/periods to look those up).
+// -----------------------------------------------------------------------------
+function pickFinalSemesterPeriods(periods) {
+  const norm = (s) => (s || "").toLowerCase();
+  const isProgressLike = (n) => /progress|mid[\s-]?term|interim|quarter/.test(norm(n));
+
+  const matchesSemester = (n, semNum) => {
+    const s = norm(n);
+    const word = semNum === 1 ? "1st" : "2nd";
+    return (
+      s.includes(`semester ${semNum}`) ||
+      s.includes(`sem ${semNum}`) ||
+      s.includes(`sem${semNum}`) ||
+      s.includes(`${word} semester`) ||
+      new RegExp(`\\bs${semNum}\\b`).test(s)
+    );
+  };
+
+  const pickBest = (semNum) => {
+    const candidates = periods.filter((p) => matchesSemester(p.name, semNum));
+    if (!candidates.length) return null;
+
+    const finals = candidates.filter((p) => norm(p.name).includes("final"));
+    const nonProgress = candidates.filter((p) => !isProgressLike(p.name));
+    const pool = finals.length ? finals : nonProgress.length ? nonProgress : candidates;
+
+    // Among remaining candidates, the final checkpoint for a semester
+    // tends to have the highest period index (it comes chronologically
+    // last within that semester).
+    return [...pool].sort((a, b) => Number(b.index) - Number(a.index))[0];
+  };
+
+  return { sem1: pickBest(1), sem2: pickBest(2) };
+}
+
+// -----------------------------------------------------------------------------
+// Merges course lists from multiple marking periods into one list, combining
+// same-titled courses (e.g. a year-long class appearing in both Semester 1
+// and Semester 2) into a single "connected" entry with a per-term grade
+// breakdown, instead of two disconnected duplicate rows.
+// -----------------------------------------------------------------------------
+const LETTER_MIDPOINT_PERCENT = {
+  "A+": 98, A: 95, "A-": 91,
+  "B+": 88, B: 85, "B-": 81,
+  "C+": 78, C: 75, "C-": 71,
+  "D+": 68, D: 65, "D-": 61,
+  F: 50,
+};
+
+function estimatePercent(letter, percent) {
+  const p = parseFloat(percent);
+  if (!isNaN(p)) return p;
+  const key = (letter || "").trim().toUpperCase().replace("−", "-");
+  return LETTER_MIDPOINT_PERCENT[key] ?? null;
+}
+
+function mergeCoursesAcrossPeriods(periodResults) {
+  // periodResults: [{ label, courses }, ...]
+  const byTitle = new Map();
+
+  periodResults.forEach(({ label, courses }) => {
+    courses.forEach((c) => {
+      const key = c.title;
+      if (!byTitle.has(key)) {
+        byTitle.set(key, {
+          title: c.title,
+          room: c.room,
+          teacher: c.teacher,
+          teacherEmail: c.teacherEmail,
+          terms: [],
+          categories: [],
+          assignments: [],
+        });
+      }
+      const entry = byTitle.get(key);
+      entry.terms.push({
+        period: label,
+        letter: c.grade.letter,
+        percent: c.grade.percent,
+      });
+      entry.room = entry.room || c.room;
+      entry.teacher = entry.teacher || c.teacher;
+      entry.teacherEmail = entry.teacherEmail || c.teacherEmail;
+      // Keep the most recently-seen period's assignments/categories, since
+      // showing both terms' full assignment lists side by side isn't
+      // meaningful here.
+      entry.categories = c.categories;
+      entry.assignments = c.assignments;
+    });
+  });
+
+  return [...byTitle.values()].map((entry) => {
+    const singleTerm = entry.terms.length === 1;
+    const estimates = entry.terms
+      .map((t) => estimatePercent(t.letter, t.percent))
+      .filter((v) => v !== null);
+    const avgPercent = estimates.length
+      ? estimates.reduce((a, b) => a + b, 0) / estimates.length
+      : null;
+
+    return {
+      title: entry.title,
+      room: entry.room,
+      teacher: entry.teacher,
+      teacherEmail: entry.teacherEmail,
+      connected: !singleTerm,
+      terms: entry.terms,
+      grade: {
+        // Single period: pass its letter/percent through unchanged.
+        // Multiple periods: expose a blended percent (averaging letter
+        // grades directly isn't meaningful) and leave letter for the
+        // client to derive, since each term already carries its own.
+        letter: singleTerm ? entry.terms[0].letter : null,
+        percent: singleTerm ? entry.terms[0].percent : avgPercent,
+      },
+      categories: entry.categories,
+      assignments: entry.assignments,
+    };
+  });
+}
+
+// -----------------------------------------------------------------------------
 // Route
 // -----------------------------------------------------------------------------
 app.post("/api/grades", async (req, res) => {
+  const { studentId, password, domain, reportPeriods } = req.body ?? {};
+
+  if (!studentId || !password || !domain) {
+    return res.status(400).json({
+      error: "studentId, password, and domain are all required.",
+    });
+  }
+
+  try {
+    // Always start with the district's default/active period — mainly to
+    // read off the full list of available marking periods, which
+    // StudentVUE includes regardless of which period was requested.
+    const defaultParsed = await callStudentVue({
+      domain,
+      userId: studentId,
+      password,
+      methodName: "Gradebook",
+      paramStr: "<Parms><ChildIntId>0</ChildIntId></Parms>",
+    });
+    const defaultGrades = transformGradebook(defaultParsed);
+
+    let periodsToFetch = null; // [{ label, index }, ...]
+
+    if (Array.isArray(reportPeriods) && reportPeriods.length) {
+      // Caller explicitly said which marking periods to combine.
+      periodsToFetch = reportPeriods.map((idx) => {
+        const match = defaultGrades.availableReportingPeriods.find(
+          (p) => String(p.index) === String(idx)
+        );
+        return { label: match ? match.name : `Period ${idx}`, index: idx };
+      });
+    } else {
+      // Best-effort: find Semester 1 Final + Semester 2 Final so the GPA
+      // reflects the full year instead of whatever's currently "active"
+      // (often a Semester 1 progress/midterm checkpoint).
+      const { sem1, sem2 } = pickFinalSemesterPeriods(
+        defaultGrades.availableReportingPeriods
+      );
+      const found = [sem1, sem2].filter(Boolean);
+      if (found.length) {
+        periodsToFetch = found.map((p) => ({ label: p.name, index: p.index }));
+      }
+    }
+
+    let courses;
+    let periodsUsed;
+
+    if (periodsToFetch && periodsToFetch.length) {
+      // The default call above already fetched whatever period StudentVUE
+      // considers "current" — if one of the periods we need to combine is
+      // that same period, reuse it instead of logging in again for it.
+      const currentPeriodMeta = defaultGrades.availableReportingPeriods.find(
+        (p) => p.name === defaultGrades.reportingPeriod
+      );
+
+      // Each remaining period requires its own independent StudentVUE
+      // login/SOAP call, so fetch them concurrently rather than one at a
+      // time (order is preserved in the results, which mergeCoursesAcrossPeriods
+      // relies on for its "last period wins" tie-breaks).
+      const periodResults = await Promise.all(
+        periodsToFetch.map(async (p) => {
+          if (currentPeriodMeta && String(p.index) === String(currentPeriodMeta.index)) {
+            return { label: p.label, courses: defaultGrades.courses };
+          }
+          const parsed = await callStudentVue({
+            domain,
+            userId: studentId,
+            password,
+            methodName: "Gradebook",
+            paramStr: `<Parms><ChildIntId>0</ChildIntId><ReportPeriod>${p.index}</ReportPeriod></Parms>`,
+          });
+          const g = transformGradebook(parsed);
+          return { label: p.label, courses: g.courses };
+        })
+      );
+      courses = mergeCoursesAcrossPeriods(periodResults);
+      periodsUsed = periodsToFetch.map((p) => p.label);
+    } else {
+      // Couldn't confidently identify semester periods for this district —
+      // fall back to whatever StudentVUE considers current, same as before.
+      courses = defaultGrades.courses.map((c) => ({
+        ...c,
+        connected: false,
+        terms: [{ period: defaultGrades.reportingPeriod, letter: c.grade.letter, percent: c.grade.percent }],
+      }));
+      periodsUsed = [defaultGrades.reportingPeriod].filter(Boolean);
+    }
+
+    return res.json({
+      reportingPeriod: periodsUsed.join(" + ") || defaultGrades.reportingPeriod,
+      periodsUsed,
+      availableReportingPeriods: defaultGrades.availableReportingPeriods,
+      courses,
+    });
+  } catch (err) {
+    const status = err instanceof HttpError ? err.status : 500;
+    const message =
+      err instanceof HttpError ? err.message : "Unexpected server error.";
+    // Never log the password or full request body here.
+    console.error(`[grades] ${status} - ${message}`);
+    return res.status(status).json({ error: message });
+  }
+});
+
+// Look up a district's available marking periods (name + index) without
+// pulling full grade data — handy for figuring out what to pass as
+// `reportPeriods` if the automatic Semester 1/2 detection guesses wrong.
+app.post("/api/periods", limiter, async (req, res) => {
   const { studentId, password, domain } = req.body ?? {};
 
   if (!studentId || !password || !domain) {
@@ -226,15 +469,13 @@ app.post("/api/grades", async (req, res) => {
       methodName: "Gradebook",
       paramStr: "<Parms><ChildIntId>0</ChildIntId></Parms>",
     });
-
     const grades = transformGradebook(parsed);
-    return res.json(grades);
+    return res.json({ periods: grades.availableReportingPeriods });
   } catch (err) {
     const status = err instanceof HttpError ? err.status : 500;
     const message =
       err instanceof HttpError ? err.message : "Unexpected server error.";
-    // Never log the password or full request body here.
-    console.error(`[grades] ${status} - ${message}`);
+    console.error(`[periods] ${status} - ${message}`);
     return res.status(status).json({ error: message });
   }
 });

@@ -52,6 +52,12 @@
         <label for="f-domain">StudentVUE domain</label>
         <input type="text" id="f-domain" placeholder="yourdistrict.edupoint.com" autocomplete="off" required/>
       </div>
+
+      <button type="button" class="periods-toggle" id="periods-toggle-btn" onclick="findPeriods()">
+        Choose grading periods manually →
+      </button>
+      <div class="periods-panel" id="periods-panel" style="display:none"></div>
+
       <button type="submit" class="btn btn-primary login-submit" id="login-btn">Log in &amp; load grades</button>
 
       <label class="tos-check" for="f-tos">
@@ -90,6 +96,10 @@
   const errEl = document.getElementById('login-error');
   const btn   = document.getElementById('login-btn');
 
+  // null = let the server auto-detect Semester 1/2 Final; otherwise an
+  // array of period index values the person picked by hand below.
+  let selectedPeriods = null;
+
   function showError(msg) {
     errEl.textContent = msg;
     errEl.classList.add('show');
@@ -103,6 +113,75 @@
     btn.innerHTML = loading
       ? '<span class="spinner"></span>Logging in…'
       : 'Log in &amp; load grades';
+  }
+
+  // Looks up every grading period StudentVUE has for this account (without
+  // pulling full grade data) and lets the person pick which one(s) to use,
+  // for districts where the automatic "Semester 1/2 Final" detection
+  // guesses wrong — or where those periods don't exist yet.
+  async function findPeriods() {
+    clearError();
+
+    const domain    = document.getElementById('f-domain').value.trim();
+    const studentId = document.getElementById('f-id').value.trim();
+    const password  = document.getElementById('f-pw').value;
+
+    if (!domain || !studentId || !password) {
+      showError('Fill in your student ID, password, and domain first.');
+      return;
+    }
+
+    const toggleBtn = document.getElementById('periods-toggle-btn');
+    const panel     = document.getElementById('periods-panel');
+    toggleBtn.disabled = true;
+    toggleBtn.innerHTML = '<span class="spinner"></span>Looking up periods…';
+
+    try {
+      const res = await fetch(`${API_BASE}/api/periods`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId, password, domain }),
+      });
+
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error('The API did not return a valid response. Is the server running?');
+      }
+
+      if (!res.ok) throw new Error(data.error || `Request failed (HTTP ${res.status}).`);
+      if (!data.periods || !data.periods.length) {
+        throw new Error('No grading periods were found for this account.');
+      }
+
+      panel.innerHTML = `
+        <p class="periods-hint">
+          Pick the period(s) you want (e.g. both semesters' finals, once they exist).
+          Leave nothing checked to let auto-detect try Semester 1/2 Final for you.
+        </p>
+        <div class="periods-list">
+          ${data.periods.map((p, i) => `
+            <label class="period-check">
+              <input type="checkbox" value="${p.index}" onchange="onPeriodToggle()" id="period-${i}"/>
+              <span>${p.name || ('Period ' + p.index)}</span>
+            </label>
+          `).join('')}
+        </div>
+      `;
+      panel.style.display = 'block';
+    } catch (err) {
+      showError(err.message || 'Could not look up grading periods.');
+    } finally {
+      toggleBtn.disabled = false;
+      toggleBtn.textContent = 'Choose grading periods manually →';
+    }
+  }
+
+  function onPeriodToggle() {
+    const checked = [...document.querySelectorAll('#periods-panel input[type=checkbox]:checked')]
+      .map((cb) => cb.value);
+    selectedPeriods = checked.length ? checked : null;
   }
 
   form.addEventListener('submit', async (e) => {
@@ -127,10 +206,15 @@
     setLoading(true);
 
     try {
+      const body = { studentId, password, domain };
+      if (selectedPeriods && selectedPeriods.length) {
+        body.reportPeriods = selectedPeriods;
+      }
+
       const res = await fetch(`${API_BASE}/api/grades`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentId, password, domain }),
+        body: JSON.stringify(body),
       });
 
       let data;
