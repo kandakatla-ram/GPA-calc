@@ -360,6 +360,12 @@ select{width:106px;cursor:pointer}
   white-space:nowrap;
 }
 .c-meta-teacher{font-style:italic}
+/* The semester pill separates the two halves of a year-long course, so it
+   carries a little more weight than the other meta badges. */
+.c-meta-sem{background:var(--bbg);color:var(--blue);font-weight:600}
+/* The school year sits right beside the semester and reads with it — which
+   half of which year — so it's weighted to match, in green to stay distinct. */
+.c-meta-year{background:var(--gbg);color:var(--green);font-weight:600}
 
 /* ── Legend ── */
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--txm);margin-bottom:.5rem}
