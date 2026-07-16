@@ -153,14 +153,32 @@ function toArray(value) {
   return Array.isArray(value) ? value : [value];
 }
 
+// StudentVUE has no per-course "school year" field — the closest thing is the
+// start date of the marking period a grade came from. A period starting in
+// July or later belongs to the school year named for that calendar year;
+// anything earlier is the back half of the previous one. Renders as "2024–25".
+function schoolYearLabel(startDate) {
+  if (!startDate) return null;
+  const d = new Date(startDate);
+  if (isNaN(d.getTime())) return null;
+  const startYear = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1;
+  return `${startYear}–${String(startYear + 1).slice(2)}`;
+}
+
 function transformGradebook(parsed) {
   const gradebook = parsed?.Gradebook;
   if (!gradebook) return { reportingPeriod: null, courses: [] };
 
   const currentPeriod = gradebook.ReportingPeriod?.GradePeriod ?? null;
+  const currentPeriodStart = gradebook.ReportingPeriod?.StartDate ?? null;
   const availablePeriods = toArray(
     gradebook.ReportingPeriods?.ReportPeriod
-  ).map((p) => ({ name: p.GradePeriod, index: p.Index }));
+  ).map((p) => ({
+    name: p.GradePeriod,
+    index: p.Index,
+    startDate: p.StartDate ?? null,
+    endDate: p.EndDate ?? null,
+  }));
 
   const courses = toArray(gradebook.Courses?.Course).map((course) => {
     const mark = course.Marks?.Mark;
@@ -201,6 +219,7 @@ function transformGradebook(parsed) {
 
   return {
     reportingPeriod: currentPeriod,
+    reportingPeriodStart: currentPeriodStart,
     availableReportingPeriods: availablePeriods,
     courses,
   };
@@ -277,10 +296,10 @@ function estimatePercent(letter, percent) {
 }
 
 function mergeCoursesAcrossPeriods(periodResults) {
-  // periodResults: [{ label, courses }, ...]
+  // periodResults: [{ label, startDate, courses }, ...]
   const byTitle = new Map();
 
-  periodResults.forEach(({ label, courses }) => {
+  periodResults.forEach(({ label, startDate, courses }) => {
     courses.forEach((c) => {
       const key = c.title;
       if (!byTitle.has(key)) {
@@ -297,6 +316,7 @@ function mergeCoursesAcrossPeriods(periodResults) {
       const entry = byTitle.get(key);
       entry.terms.push({
         period: label,
+        schoolYear: schoolYearLabel(startDate),
         letter: c.grade.letter,
         percent: c.grade.percent,
       });
@@ -325,6 +345,7 @@ function mergeCoursesAcrossPeriods(periodResults) {
       room: entry.room,
       teacher: entry.teacher,
       teacherEmail: entry.teacherEmail,
+      schoolYear: entry.terms.map((t) => t.schoolYear).find(Boolean) ?? null,
       connected: !singleTerm,
       terms: entry.terms,
       grade: {
@@ -374,7 +395,11 @@ app.post("/api/grades", async (req, res) => {
         const match = defaultGrades.availableReportingPeriods.find(
           (p) => String(p.index) === String(idx)
         );
-        return { label: match ? match.name : `Period ${idx}`, index: idx };
+        return {
+          label: match ? match.name : `Period ${idx}`,
+          index: idx,
+          startDate: match?.startDate ?? null,
+        };
       });
     } else {
       // Best-effort: find Semester 1 Final + Semester 2 Final so the GPA
@@ -385,7 +410,11 @@ app.post("/api/grades", async (req, res) => {
       );
       const found = [sem1, sem2].filter(Boolean);
       if (found.length) {
-        periodsToFetch = found.map((p) => ({ label: p.name, index: p.index }));
+        periodsToFetch = found.map((p) => ({
+          label: p.name,
+          index: p.index,
+          startDate: p.startDate ?? null,
+        }));
       }
     }
 
@@ -407,7 +436,7 @@ app.post("/api/grades", async (req, res) => {
       const periodResults = await Promise.all(
         periodsToFetch.map(async (p) => {
           if (currentPeriodMeta && String(p.index) === String(currentPeriodMeta.index)) {
-            return { label: p.label, courses: defaultGrades.courses };
+            return { label: p.label, startDate: p.startDate, courses: defaultGrades.courses };
           }
           const parsed = await callStudentVue({
             domain,
@@ -417,7 +446,7 @@ app.post("/api/grades", async (req, res) => {
             paramStr: `<Parms><ChildIntId>0</ChildIntId><ReportPeriod>${p.index}</ReportPeriod></Parms>`,
           });
           const g = transformGradebook(parsed);
-          return { label: p.label, courses: g.courses };
+          return { label: p.label, startDate: p.startDate, courses: g.courses };
         })
       );
       courses = mergeCoursesAcrossPeriods(periodResults);
@@ -425,10 +454,17 @@ app.post("/api/grades", async (req, res) => {
     } else {
       // Couldn't confidently identify semester periods for this district —
       // fall back to whatever StudentVUE considers current, same as before.
+      const fallbackYear = schoolYearLabel(defaultGrades.reportingPeriodStart);
       courses = defaultGrades.courses.map((c) => ({
         ...c,
         connected: false,
-        terms: [{ period: defaultGrades.reportingPeriod, letter: c.grade.letter, percent: c.grade.percent }],
+        schoolYear: fallbackYear,
+        terms: [{
+          period: defaultGrades.reportingPeriod,
+          schoolYear: fallbackYear,
+          letter: c.grade.letter,
+          percent: c.grade.percent,
+        }],
       }));
       periodsUsed = [defaultGrades.reportingPeriod].filter(Boolean);
     }

@@ -352,6 +352,14 @@ select{width:106px;cursor:pointer}
   font-size:10px;background:var(--gbg);color:var(--green);
   padding:1px 6px;border-radius:20px;font-weight:600;margin-left:4px;
 }
+/* Year / room / teacher, from StudentVUE. Deliberately muted — they're
+   context for the class name, not competing with the grade figures. */
+.c-meta{
+  font-size:10px;background:var(--s2);color:var(--txm);
+  padding:1px 6px;border-radius:20px;font-weight:500;margin-left:4px;
+  white-space:nowrap;
+}
+.c-meta-teacher{font-style:italic}
 
 /* ── Legend ── */
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--txm);margin-bottom:.5rem}
