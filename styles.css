@@ -531,19 +531,20 @@ footer{margin-top:2.5rem;font-size:11px;color:var(--txf);border-top:.5px solid v
 
 /* ── Global "Terms & Conditions" footer link (present on every page) ── */
 .global-footer{
-  position:fixed;left:0;right:0;bottom:0;z-index:200;
+  position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:50;
   display:flex;justify-content:center;align-items:center;
-  padding:9px 12px 11px;font-size:11px;
-  background:linear-gradient(to top, var(--bg) 55%, transparent);
-  pointer-events:none;
+  font-size:11px;
 }
 .global-footer a{
-  pointer-events:auto;color:var(--txf);text-decoration:underline;
-  text-underline-offset:2px;
+  color:var(--txf);text-decoration:underline;
+  text-underline-offset:2px;white-space:nowrap;
 }
 .global-footer a:hover{color:var(--blue)}
-/* On the terms page itself the footer doesn't need the fade backdrop */
-.global-footer.static{position:static;background:none;margin-top:2.5rem;padding:1rem}
+/* On the terms page itself the footer sits in normal document flow */
+.global-footer.static{
+  position:static;left:auto;bottom:auto;transform:none;
+  margin-top:2.5rem;padding:1rem;
+}
 
 /* ── Terms & Conditions page ── */
 .terms-shell{min-height:100vh;position:relative;z-index:1;padding:2.5rem 1.5rem 5rem}
